@@ -1,0 +1,20 @@
+[package]
+name = "piccle-fuzz"
+version = { workspace = true }
+authors = { workspace = true }
+categories = { workspace = true }
+documentation = { workspace = true }
+edition = { workspace = true }
+homepage = { workspace = true }
+keywords = { workspace = true }
+license = { workspace = true }
+publish = { workspace = true }
+repository = { workspace = true }
+rust-version = { workspace = true }
+description = "Fuzz targets for the Piccle engine. Run with cargo fuzz."
+
+[lints]
+workspace = true
+
+[dependencies]
+piccle-validate = { workspace = true }

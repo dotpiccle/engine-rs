@@ -1,0 +1,21 @@
+[files]
+extend-exclude = ["piccle-spec/", "target/", "crates/piccle-fuzz/corpus/"]
+
+[default.extend-words]
+biquad = "biquad"
+polyblep = "polyblep"
+pcg = "pcg"
+wavetable = "wavetable"
+fdn = "fdn"
+schroeder = "schroeder"
+nyquist = "nyquist"
+dbfs = "dbfs"
+resampler = "resampler"
+oversampling = "oversampling"
+subnormal = "subnormal"
+denormal = "denormal"
+hadamard = "hadamard"
+allpass = "allpass"
+lowpass = "lowpass"
+highpass = "highpass"
+bandpass = "bandpass"

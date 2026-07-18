@@ -1,0 +1,35 @@
+{
+  "lineWidth": 100,
+  "indentWidth": 2,
+  "useTabs": false,
+  "newLineKind": "lf",
+  "plugins": [
+    "https://plugins.dprint.dev/markdown-0.17.8.wasm",
+    "https://plugins.dprint.dev/g-plane/pretty_yaml-v0.6.0.wasm",
+    "https://plugins.dprint.dev/toml-0.6.3.wasm",
+    "https://plugins.dprint.dev/json-0.19.4.wasm"
+  ],
+  "markdown": {
+    "lineWidth": 100,
+    "textWrap": "always"
+  },
+  "yaml": {},
+  "toml": {
+    "lineWidth": 100,
+    "indentWidth": 4
+  },
+  "json": {
+    "lineWidth": 100,
+    "indentWidth": 2
+  },
+  "includes": ["**/*.md", "**/*.yaml", "**/*.yml", "**/*.toml", "**/*.json"],
+  "excludes": [
+    "piccle-spec/**",
+    "target/**",
+    "crates/piccle-fuzz/corpus/**",
+    ".cargo-husky/**",
+    ".opencode/**",
+    ".github/workflows/**",
+    "**/Cargo.lock"
+  ]
+}

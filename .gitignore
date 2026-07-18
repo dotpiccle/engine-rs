@@ -1,0 +1,33 @@
+# Rust
+/target
+**/target
+**/*.rs.bk
+Cargo.lock.bak
+
+# Coverage output
+/coverage
+*.profraw
+*.lcov
+tarpaulin-report.html
+
+# Fuzz artifacts
+crates/piccle-fuzz/corpus/
+crates/piccle-fuzz/artifacts/
+crates/piccle-fuzz/coverage/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local environment
+.env
+.env.local
+.env.*.local
+
+# Profiler output
+*.flamegraph.svg
+flamegraph.svg
+samply-*.json
+
+# AI
+.opencode

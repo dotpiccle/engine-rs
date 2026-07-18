@@ -1,0 +1,21 @@
+[package]
+name = "xtask"
+version = { workspace = true }
+authors = { workspace = true }
+categories = { workspace = true }
+documentation = { workspace = true }
+edition = { workspace = true }
+homepage = { workspace = true }
+keywords = { workspace = true }
+license = { workspace = true }
+publish = false
+repository = { workspace = true }
+rust-version = { workspace = true }
+description = "Internal automation for the piccle engine workspace (conformance, setup, sync-spec, bench)."
+
+[lints]
+workspace = true
+
+[dependencies]
+piccle = { workspace = true }
+piccle-validate = { workspace = true }

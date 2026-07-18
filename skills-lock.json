@@ -7,6 +7,12 @@
       "skillPath": "plugins/ask-questions-if-underspecified/skills/ask-questions-if-underspecified/SKILL.md",
       "computedHash": "e78cf8dd5cb5861bd606ce450ed305051bd09998429f81c33eaab9c87db96272"
     },
+    "brainstorming": {
+      "source": "sickn33/antigravity-awesome-skills",
+      "sourceType": "github",
+      "skillPath": "skills/brainstorming/SKILL.md",
+      "computedHash": "b27a55b85de6ca13c32212a41fe2e566705fdb59f2a74e0848146bfd481cc668"
+    },
     "cargo-fuzz": {
       "source": "trailofbits/skills",
       "sourceType": "github",

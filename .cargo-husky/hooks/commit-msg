@@ -1,0 +1,10 @@
+#!/bin/sh
+# Commit-message hook for the piccle engine.
+# Installed by cargo-husky via `cargo setup` (or `cargo test` as fallback).
+# Bypass: git commit --no-verify
+
+set -e
+commit_msg_file="$1"
+
+echo "+committed (commit message linter)"
+committed --config .committed.toml --commit-file "$commit_msg_file"

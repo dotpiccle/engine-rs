@@ -1,0 +1,19 @@
+#!/bin/sh
+# Pre-commit hook for the piccle engine.
+# Installed by cargo-husky via `cargo setup` (or `cargo test` as fallback).
+# CI remains the authoritative gate; this is a fast-feedback convenience.
+# Bypass for a WIP commit: git commit --no-verify
+
+set -e
+
+echo '+cargo +nightly fmt --all -- --check'
+cargo +nightly fmt --all -- --check
+
+echo '+cargo clippy --workspace --all-targets -- -D warnings'
+cargo clippy --workspace --all-targets -- -D warnings
+
+echo '+typos'
+typos
+
+echo '+dprint check'
+dprint check

@@ -1,0 +1,15 @@
+[alias]
+xtask = "run --package xtask --"
+setup = "run --package xtask -- setup"
+t = "nextest run"
+tcov = "llvm-cov nextest --workspace"
+ci = "hack clippy --feature-powerset --no-dev-deps -- -D warnings"
+
+[build]
+target-dir = "target"
+
+[profile.release]
+debug = "line-tables-only"
+lto = "thin"
+codegen-units = 1
+panic = "abort"

@@ -1,0 +1,25 @@
+[package]
+name = "piccle-dsp"
+version = { workspace = true }
+authors = { workspace = true }
+categories = { workspace = true }
+documentation = { workspace = true }
+edition = { workspace = true }
+homepage = { workspace = true }
+keywords = { workspace = true }
+license = { workspace = true }
+publish = { workspace = true }
+repository = { workspace = true }
+rust-version = { workspace = true }
+description = "DSP primitives for the Piccle engine: PCG32 noise, tone oscillators, biquad filters, and FDN reverb."
+
+[lints]
+workspace = true
+
+[dependencies]
+piccle-core = { workspace = true }
+
+[dev-dependencies]
+cargo-husky = { workspace = true }
+criterion = { workspace = true }
+proptest = { workspace = true }

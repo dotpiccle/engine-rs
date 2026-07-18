@@ -1,0 +1,13 @@
+#!/bin/sh
+# Pre-push hook for the piccle engine.
+# Installed by cargo-husky via `cargo setup` (or `cargo test` as fallback).
+# CI remains the authoritative gate; this is a fast-feedback convenience.
+# Bypass for a WIP push: git push --no-verify
+
+set -e
+
+echo '+cargo deny check'
+cargo deny check
+
+echo '+cargo nextest run --workspace --all-features'
+cargo nextest run --workspace --all-features || cargo test --workspace --all-features

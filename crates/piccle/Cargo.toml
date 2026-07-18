@@ -1,0 +1,29 @@
+[package]
+name = "piccle"
+version = { workspace = true }
+authors = { workspace = true }
+categories = { workspace = true }
+documentation = { workspace = true }
+edition = { workspace = true }
+homepage = { workspace = true }
+keywords = { workspace = true }
+license = { workspace = true }
+publish = { workspace = true }
+repository = { workspace = true }
+rust-version = { workspace = true }
+description = "The Piccle engine — a portable, secure, deterministic implementation of the Piccle micro-audio format."
+
+[lints]
+workspace = true
+
+[dependencies]
+piccle-core = { workspace = true }
+piccle-dsp = { workspace = true }
+piccle-render = { workspace = true }
+piccle-validate = { workspace = true }
+
+[dev-dependencies]
+cargo-husky = { workspace = true }
+criterion = { workspace = true }
+insta = { workspace = true }
+proptest = { workspace = true }

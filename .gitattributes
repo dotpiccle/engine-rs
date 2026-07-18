@@ -1,0 +1,15 @@
+# Normalize line endings
+* text=auto eol=lf
+
+# Binary files
+*.png binary
+*.jpg binary
+*.wav binary
+*.flac binary
+*.mp3 binary
+*.pdf binary
+
+# Linguist language detection (GitHub)
+*.rs linguist-language=Rust
+Cargo.toml linguist-language=TOML
+Cargo.lock linguist-generated=true

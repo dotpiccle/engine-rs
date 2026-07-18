@@ -1,0 +1,4 @@
+[submodule "piccle-spec"]
+	path = piccle-spec
+	url = https://github.com/dotpiccle/spec.git
+	branch = main
