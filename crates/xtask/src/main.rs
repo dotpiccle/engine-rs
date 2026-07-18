@@ -37,32 +37,41 @@ fn main() {
 fn cmd_setup() {
     println!("=== piccle engine setup ===");
 
+    struct Tool {
+        bin: &'static str,
+        crate_name: &'static str,
+    }
+
     let required_tools = [
-        "cargo-audit",
-        "cargo-deny",
-        "cargo-fuzz",
-        "cargo-nextest",
-        "cargo-llvm-cov",
-        "cargo-hack",
-        "cargo-release",
-        "cargo-flamegraph",
-        "samply",
-        "typos",
-        "committed",
-        "dprint",
-        "hyperfine",
+        Tool { bin: "cargo-audit", crate_name: "cargo-audit" },
+        Tool { bin: "cargo-deny", crate_name: "cargo-deny" },
+        Tool { bin: "cargo-fuzz", crate_name: "cargo-fuzz" },
+        Tool { bin: "cargo-nextest", crate_name: "cargo-nextest" },
+        Tool { bin: "cargo-llvm-cov", crate_name: "cargo-llvm-cov" },
+        Tool { bin: "cargo-hack", crate_name: "cargo-hack" },
+        Tool { bin: "cargo-release", crate_name: "cargo-release" },
+        Tool { bin: "cargo-flamegraph", crate_name: "flamegraph" },
+        Tool { bin: "samply", crate_name: "samply" },
+        Tool { bin: "typos", crate_name: "typos-cli" },
+        Tool { bin: "committed", crate_name: "committed" },
+        Tool { bin: "dprint", crate_name: "dprint" },
+        Tool { bin: "hyperfine", crate_name: "hyperfine" },
     ];
 
-    for &tool in &required_tools {
-        if which(tool).is_some() {
-            println!("  ✅ {tool}");
+    for tool in &required_tools {
+        if which(tool.bin).is_some() {
+            println!("  ✅ {}", tool.bin);
         }
         else {
-            println!("  ⬜ {tool} — installing...");
-            let status = std::process::Command::new("cargo").args(["install", tool]).status();
+            println!("  ⬜ {} — installing...", tool.bin);
+            let status =
+                std::process::Command::new("cargo").args(["install", tool.crate_name]).status();
             match status {
-                Ok(s) if s.success() => println!("  ✅ {tool} installed"),
-                _ => eprintln!("  ❌ {tool} — install failed (try: cargo install {tool})"),
+                Ok(s) if s.success() => println!("  ✅ {} installed", tool.bin),
+                _ => eprintln!(
+                    "  ❌ {} — install failed (try: cargo install {})",
+                    tool.bin, tool.crate_name
+                ),
             }
         }
     }
