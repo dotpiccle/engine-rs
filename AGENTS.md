@@ -12,8 +12,8 @@ synthesis instructions (tones, deterministic noise, filters, reverb) rather than
 This engine parses Piccle documents, validates them, and renders audio according to the normative
 specification. It must be:
 
-- **Spec-conformant** above all. Every normative requirement in `piccle-spec/docs/` (chapters
-  00–11, 14) is a hard contract. When this file and the spec disagree, the spec wins.
+- **Spec-conformant** above all. Every normative requirement in `piccle-spec/docs/` (all chapters)
+  is a hard contract. When this file and the spec disagree, the spec wins.
 - **Secure.** Piccle documents are untrusted input per `piccle-spec/docs/11-engine-safety.md`.
 - **Deterministic.** Same document + same render profile = same output (within the spec's
   determinism classes).
@@ -91,9 +91,9 @@ output storage, and frame formula).
 
 The complete verification checklist is defined in
 [`piccle-spec/docs/15-engine-build-guide.md`](piccle-spec/docs/15-engine-build-guide.md) §Engine
-conformance verification (8 steps covering valid fixtures, invalid fixtures, DSP reference values,
-oscillator spectral purity, control surface extremes, finite output, official examples, and
-profiling).
+conformance verification (9 steps covering valid fixtures, invalid fixtures, DSP reference values,
+oscillator spectral purity, control surface extremes, reverb cross-engine equivalence, finite
+output, official examples, and profiling).
 
 ## 5. Engine design principles
 
