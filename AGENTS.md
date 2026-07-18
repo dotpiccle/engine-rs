@@ -76,24 +76,24 @@ crate. The render path consumes an immutable `RenderPlan`; it never sees raw JSO
 
 ### 4.1 Failure categories
 
-Defined in [`piccle-spec/docs/14-conformance.md`](piccle-spec/docs/14-conformance.md)
-§Validation stages. The error string codes in
+Defined in [`piccle-spec/docs/14-conformance.md`](piccle-spec/docs/14-conformance.md) §Validation
+stages. The error string codes in
 [`piccle-spec/test-vectors/invalid-expectations.json`](piccle-spec/test-vectors/invalid-expectations.json)
 are the canonical contract — they MUST NOT be renamed without a SemVer-major bump.
 
 ### 4.2 Canonical conformance profile
 
-See [`piccle-spec/docs/11-engine-safety.md`](piccle-spec/docs/11-engine-safety.md)
-§Canonical conformance profile for the canonical mode properties (sample rate,
-output channels, DSP precision, output storage, and frame formula).
+See [`piccle-spec/docs/11-engine-safety.md`](piccle-spec/docs/11-engine-safety.md) §Canonical
+conformance profile for the canonical mode properties (sample rate, output channels, DSP precision,
+output storage, and frame formula).
 
 ### 4.3 Required verification
 
 The complete verification checklist is defined in
-[`piccle-spec/docs/15-engine-build-guide.md`](piccle-spec/docs/15-engine-build-guide.md)
-§Engine conformance verification (8 steps covering valid fixtures, invalid
-fixtures, DSP reference values, oscillator spectral purity, control surface
-extremes, finite output, official examples, and profiling).
+[`piccle-spec/docs/15-engine-build-guide.md`](piccle-spec/docs/15-engine-build-guide.md) §Engine
+conformance verification (8 steps covering valid fixtures, invalid fixtures, DSP reference values,
+oscillator spectral purity, control surface extremes, finite output, official examples, and
+profiling).
 
 ## 5. Engine design principles
 
@@ -111,8 +111,8 @@ the preparation phase.
 
 ### 5.3 Validation is the security boundary
 
-The spec's [`piccle-spec/docs/11-engine-safety.md`](piccle-spec/docs/11-engine-safety.md)
-§Untrusted input defines a 6-step pre-render pipeline that the engine MUST follow.
+The spec's [`piccle-spec/docs/11-engine-safety.md`](piccle-spec/docs/11-engine-safety.md) §Untrusted
+input defines a 6-step pre-render pipeline that the engine MUST follow.
 `piccle::prepare(&bytes) -> Result<RenderPlan, PiccleError>` is the ONLY way to reach the render
 path. The render path takes a `&RenderPlan` and cannot fail validation.
 
@@ -294,9 +294,9 @@ hangs, never allocates unbounded memory.
 
 ### 10.4 Untrusted input
 
-Defined in [`piccle-spec/docs/11-engine-safety.md`](piccle-spec/docs/11-engine-safety.md)
-§Untrusted input (6-step pre-render pipeline). Validation produces a `RenderPlan`.
-The render path takes a `&RenderPlan` and cannot fail.
+Defined in [`piccle-spec/docs/11-engine-safety.md`](piccle-spec/docs/11-engine-safety.md) §Untrusted
+input (6-step pre-render pipeline). Validation produces a `RenderPlan`. The render path takes a
+`&RenderPlan` and cannot fail.
 
 ### 10.5 Denormal protection
 

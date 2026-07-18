@@ -48,9 +48,7 @@ thiserror = "2.0"
 # Project-local git hooks: auto-installs .cargo-husky/hooks/* into .git/hooks/
 # on `cargo test`. See §11. Disable with
 # CARGO_HUSKY_DONT_INSTALL_HOOKS=true cargo test.
-cargo-husky = { version = "1", default-features = false, features = [
-    "user-hooks",
-] }
+cargo-husky = { version = "1", default-features = false, features = ["user-hooks"] }
 criterion = { version = "0.5", features = ["html_reports"] }
 divan = "0.1"
 insta = { version = "1.40", features = ["json"] }
