@@ -3,12 +3,13 @@ name = "piccle-core"
 version = { workspace = true }
 authors = { workspace = true }
 categories = { workspace = true }
-documentation = { workspace = true }
+documentation = "https://docs.rs/piccle-core"
 edition = { workspace = true }
 homepage = { workspace = true }
 keywords = { workspace = true }
 license = { workspace = true }
 publish = { workspace = true }
+readme = { workspace = true }
 repository = { workspace = true }
 rust-version = { workspace = true }
 description = "Core document model, errors, and curve primitives for the Piccle engine."
@@ -17,11 +18,4 @@ description = "Core document model, errors, and curve primitives for the Piccle 
 workspace = true
 
 [dependencies]
-serde = { workspace = true }
-serde_json = { workspace = true }
 thiserror = { workspace = true }
-
-[dev-dependencies]
-cargo-husky = { workspace = true }
-insta = { workspace = true }
-proptest = { workspace = true }

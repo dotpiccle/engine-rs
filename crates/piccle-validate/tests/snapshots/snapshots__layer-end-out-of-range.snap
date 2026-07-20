@@ -1,0 +1,5 @@
+---
+source: crates/piccle-validate/tests/snapshots.rs
+expression: "format!(\"{} {} {}\", error.stage(), error.code(), error.path())"
+---
+semantic semantic.layer_end_out_of_range $.layers[0].duration_ms

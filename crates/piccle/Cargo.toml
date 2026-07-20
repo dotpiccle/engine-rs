@@ -5,10 +5,12 @@ authors = { workspace = true }
 categories = { workspace = true }
 documentation = { workspace = true }
 edition = { workspace = true }
+exclude = ["/tests"]
 homepage = { workspace = true }
 keywords = { workspace = true }
 license = { workspace = true }
 publish = { workspace = true }
+readme = { workspace = true }
 repository = { workspace = true }
 rust-version = { workspace = true }
 description = "The Piccle engine — a portable, secure, deterministic implementation of the Piccle micro-audio format."
@@ -23,7 +25,5 @@ piccle-render = { workspace = true }
 piccle-validate = { workspace = true }
 
 [dev-dependencies]
-cargo-husky = { workspace = true }
-criterion = { workspace = true }
-insta = { workspace = true }
 proptest = { workspace = true }
+serde_json.workspace = true

@@ -1,5 +1,8 @@
 name: CI
 
+permissions:
+  contents: read
+
 on:
   push:
     branches: [main]
@@ -16,21 +19,22 @@ jobs:
     name: rustfmt
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with: { submodules: recursive }
-      - uses: dtolnay/rust-toolchain@nightly
-        with: { components: rustfmt }
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c
+        with: { toolchain: nightly, components: rustfmt }
       - run: cargo +nightly fmt --all -- --check
 
   clippy:
     name: clippy (feature powerset)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with: { submodules: recursive }
-      - uses: dtolnay/rust-toolchain@stable
-        with: { components: clippy }
-      - uses: taiki-e/install-action@cargo-hack
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c
+        with: { toolchain: stable, components: clippy }
+      - uses: taiki-e/install-action@25f25a6eff908c77b40880d0b1f5d2a032b6e75a
+        with: { tool: cargo-hack }
       - run: cargo hack clippy --feature-powerset --no-dev-deps -- -D warnings
 
   test:
@@ -41,20 +45,39 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with: { submodules: recursive }
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: taiki-e/install-action@cargo-nextest
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c
+        with: { toolchain: stable }
+      - uses: taiki-e/install-action@25f25a6eff908c77b40880d0b1f5d2a032b6e75a
+        with: { tool: cargo-nextest }
       - run: cargo nextest run --workspace --all-features
       - run: cargo test --doc --workspace --all-features
+
+  coverage:
+    name: library coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with: { submodules: recursive }
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c
+        with: { toolchain: stable, components: llvm-tools-preview }
+      - uses: taiki-e/install-action@25f25a6eff908c77b40880d0b1f5d2a032b6e75a
+        with: { tool: cargo-nextest }
+      - uses: taiki-e/install-action@25f25a6eff908c77b40880d0b1f5d2a032b6e75a
+        with: { tool: cargo-llvm-cov }
+      - run: >-
+          cargo llvm-cov nextest --workspace --all-features
+          --ignore-filename-regex 'xtask/' --fail-under-lines 90
 
   msrv:
     name: MSRV (1.85)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with: { submodules: recursive }
-      - uses: dtolnay/rust-toolchain@1.85
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c
+        with: { toolchain: "1.85" }
       - run: cargo +1.85 check --workspace --all-features
 
   cross-check:
@@ -72,17 +95,17 @@ jobs:
           - x86_64-apple-ios
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with: { submodules: recursive }
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c
         with:
+          toolchain: stable
           targets: ${{ matrix.target }}
       - name: cargo check
         run: |
           if [ "${{ matrix.target }}" = "wasm32-unknown-unknown" ]; then
-            # piccle-validate depends on jsonschema -> getrandom, which doesn't
-            # support wasm32-unknown-unknown. Only render-path crates need to
-            # compile for WASM. See AGENTS.md §5.10 portability matrix.
+            # Validation uses std and is application-processor-only. The core
+            # document and allocation-free render crates must compile on WASM.
             cargo check -p piccle-core -p piccle-dsp -p piccle-render \
               --target ${{ matrix.target }}
           else
@@ -93,10 +116,12 @@ jobs:
     name: cargo-audit + cargo-deny
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with: { submodules: recursive }
-      - uses: taiki-e/install-action@cargo-deny
-      - uses: taiki-e/install-action@cargo-audit
+      - uses: taiki-e/install-action@25f25a6eff908c77b40880d0b1f5d2a032b6e75a
+        with: { tool: cargo-deny }
+      - uses: taiki-e/install-action@25f25a6eff908c77b40880d0b1f5d2a032b6e75a
+        with: { tool: cargo-audit }
       - run: cargo deny check
       - run: cargo audit
 
@@ -104,9 +129,10 @@ jobs:
     name: fuzz crate compiles
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with: { submodules: recursive }
-      - uses: dtolnay/rust-toolchain@nightly
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c
+        with: { toolchain: nightly }
       - run: cargo check --manifest-path crates/piccle-fuzz/Cargo.toml
 
   docs:
@@ -115,44 +141,58 @@ jobs:
     env:
       RUSTDOCFLAGS: "--cfg docsrs -D warnings"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with: { submodules: recursive }
-      - uses: dtolnay/rust-toolchain@nightly
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c
+        with: { toolchain: nightly }
       - run: cargo +nightly doc -Zunstable-options --no-deps --workspace --all-features
 
   typos:
     name: spell check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with: { submodules: recursive }
-      - uses: crate-ci/typos@v1.20
+      - uses: taiki-e/install-action@25f25a6eff908c77b40880d0b1f5d2a032b6e75a
+        with: { tool: typos-cli }
+      - run: typos
 
   dprint:
     name: format check (markdown/yaml/toml/json)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with: { submodules: recursive }
-      - uses: dtolnay/rust-toolchain@stable
-      - run: cargo install dprint --locked
+      - uses: taiki-e/install-action@25f25a6eff908c77b40880d0b1f5d2a032b6e75a
+        with: { tool: dprint }
       - run: dprint check
 
   gitleaks:
     name: secrets scanning
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with: { submodules: recursive, fetch-depth: 0 }
-      - uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: install Gitleaks 8.30.1
+        shell: bash
+        run: |
+          archive="${RUNNER_TEMP}/gitleaks_8.30.1_linux_x64.tar.gz"
+          curl --fail --location --proto '=https' --tlsv1.2 \
+            --output "${archive}" \
+            https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz
+          echo "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb  ${archive}" \
+            | sha256sum --check --strict
+          tar --extract --gzip --file "${archive}" --directory "${RUNNER_TEMP}" gitleaks
+          echo "${RUNNER_TEMP}" >> "${GITHUB_PATH}"
+      - run: gitleaks git --redact --verbose
 
   conformance:
     name: spec conformance
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with: { submodules: recursive }
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c
+        with: { toolchain: stable }
+      - run: python3 piccle-spec/scripts/validate.py
       - run: cargo xtask conformance --piccle-spec piccle-spec

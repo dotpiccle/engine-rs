@@ -3,12 +3,14 @@ name = "piccle-render"
 version = { workspace = true }
 authors = { workspace = true }
 categories = { workspace = true }
-documentation = { workspace = true }
+documentation = "https://docs.rs/piccle-render"
 edition = { workspace = true }
+exclude = ["/tests"]
 homepage = { workspace = true }
 keywords = { workspace = true }
 license = { workspace = true }
 publish = { workspace = true }
+readme = { workspace = true }
 repository = { workspace = true }
 rust-version = { workspace = true }
 description = "Boundary schedule, render plan, and production render loop for the Piccle engine."
@@ -20,7 +22,10 @@ workspace = true
 piccle-core = { workspace = true }
 piccle-dsp = { workspace = true }
 
+[[bench]]
+name = "render"
+harness = false
+
 [dev-dependencies]
-cargo-husky = { workspace = true }
+alloc_counter = "0.0.4"
 criterion = { workspace = true }
-proptest = { workspace = true }

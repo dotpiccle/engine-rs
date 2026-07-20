@@ -1,0 +1,67 @@
+---
+source: crates/piccle-validate/tests/snapshots.rs
+expression: document
+---
+Document {
+    name: Some(
+        "Button Click",
+    ),
+    description: Some(
+        "A short noise burst, brightened with a highpass filter — the everyday button click.",
+    ),
+    duration_ms: 80,
+    master_volume_level: 1.0,
+    spatial_effects: [],
+    layers: [
+        Layer {
+            id: "click",
+            start_ms: 0,
+            duration_ms: 80,
+            source: Noise(
+                NoiseSource {
+                    character: Sharp,
+                    seed: 7,
+                },
+            ),
+            volume: VolumeContour {
+                fade_in: FadeStage {
+                    ms: 0,
+                    curve: Linear,
+                },
+                fade_out: FadeStage {
+                    ms: 10,
+                    curve: Linear,
+                },
+                levels: [
+                    ContourEntry {
+                        target: 0.7,
+                        hold_ms: 0,
+                        transition_ms: 5,
+                        transition_curve: Exponential,
+                    },
+                    ContourEntry {
+                        target: 0.05,
+                        hold_ms: 0,
+                        transition_ms: 0,
+                        transition_curve: Linear,
+                    },
+                ],
+            },
+            balance: 0.0,
+            filters: [
+                Filter {
+                    filter_type: Highpass,
+                    frequencies: [
+                        ContourEntry {
+                            target: 3000.0,
+                            hold_ms: 0,
+                            transition_ms: 0,
+                            transition_curve: Linear,
+                        },
+                    ],
+                    resonance: 0.0,
+                },
+            ],
+        },
+    ],
+}

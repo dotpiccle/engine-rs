@@ -1,0 +1,5 @@
+---
+source: crates/piccle-validate/tests/snapshots.rs
+expression: "format!(\"{} {} {}\", error.stage(), error.code(), error.path())"
+---
+semantic semantic.echo_tail_unbounded $.spatial_effects[0].feedback

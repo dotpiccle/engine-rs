@@ -3,19 +3,24 @@ name = "xtask"
 version = { workspace = true }
 authors = { workspace = true }
 categories = { workspace = true }
-documentation = { workspace = true }
+default-run = "xtask"
 edition = { workspace = true }
 homepage = { workspace = true }
 keywords = { workspace = true }
 license = { workspace = true }
 publish = false
+readme = { workspace = true }
 repository = { workspace = true }
 rust-version = { workspace = true }
-description = "Internal automation for the piccle engine workspace (conformance, setup, sync-spec, bench)."
+description = "Internal automation for Piccle conformance, setup, synchronization, and host/device benchmarks."
 
 [lints]
 workspace = true
 
 [dependencies]
 piccle = { workspace = true }
+piccle-core.workspace = true
+piccle-dsp.workspace = true
+piccle-render.workspace = true
 piccle-validate = { workspace = true }
+serde_json.workspace = true

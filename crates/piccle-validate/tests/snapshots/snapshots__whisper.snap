@@ -1,0 +1,67 @@
+---
+source: crates/piccle-validate/tests/snapshots.rs
+expression: document
+---
+Document {
+    name: Some(
+        "Whisper",
+    ),
+    description: Some(
+        "The quietest option — a breathy swell for dense lists.",
+    ),
+    duration_ms: 400,
+    master_volume_level: 0.4,
+    spatial_effects: [],
+    layers: [
+        Layer {
+            id: "breath",
+            start_ms: 0,
+            duration_ms: 400,
+            source: Noise(
+                NoiseSource {
+                    character: Soft,
+                    seed: 0,
+                },
+            ),
+            volume: VolumeContour {
+                fade_in: FadeStage {
+                    ms: 60,
+                    curve: Linear,
+                },
+                fade_out: FadeStage {
+                    ms: 80,
+                    curve: Linear,
+                },
+                levels: [
+                    ContourEntry {
+                        target: 0.5,
+                        hold_ms: 100,
+                        transition_ms: 0,
+                        transition_curve: Linear,
+                    },
+                    ContourEntry {
+                        target: 0.5,
+                        hold_ms: 0,
+                        transition_ms: 0,
+                        transition_curve: Linear,
+                    },
+                ],
+            },
+            balance: 0.0,
+            filters: [
+                Filter {
+                    filter_type: Lowpass,
+                    frequencies: [
+                        ContourEntry {
+                            target: 2000.0,
+                            hold_ms: 0,
+                            transition_ms: 0,
+                            transition_curve: Linear,
+                        },
+                    ],
+                    resonance: 0.0,
+                },
+            ],
+        },
+    ],
+}
