@@ -151,8 +151,11 @@ fn connected_android_device() -> Option<String> {
 fn parse_connected_android_device(output: &str) -> Option<String> {
     let devices = output
         .lines()
-        .filter_map(|line| line.split_once("\tdevice"))
-        .map(|(serial, _)| serial.to_owned())
+        .filter_map(|line| {
+            let mut fields = line.split_ascii_whitespace();
+            let serial = fields.next()?;
+            (fields.next()? == "device").then(|| serial.to_owned())
+        })
         .collect::<Vec<_>>();
     match devices.as_slice() {
         [device] => Some(device.clone()),
@@ -322,6 +325,13 @@ mod tests {
     #[test]
     fn adb_parser_accepts_exactly_one_authorized_device() {
         let output = "List of devices attached\nJ5SERIAL\tdevice product:j5 model:SM_J500M\n";
+        assert_eq!(parse_connected_android_device(output).as_deref(), Some("J5SERIAL"));
+    }
+
+    #[test]
+    fn adb_parser_accepts_space_aligned_platform_tools_output() {
+        let output =
+            "List of devices attached\nJ5SERIAL            device product:j5 model:SM_J500M\n";
         assert_eq!(parse_connected_android_device(output).as_deref(), Some("J5SERIAL"));
     }
 

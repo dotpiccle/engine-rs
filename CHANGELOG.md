@@ -51,6 +51,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Accept both tab-separated and space-aligned `adb devices -l` output in the on-device benchmark
+  runner, including the format emitted by Android platform-tools 37.
 - Make the packaged reverb-matrix drift test compare parsed JSON so Windows checkout line endings
   cannot produce a false conformance failure.
 - Install `cargo-deny` and `cargo-audit` independently in CI and release jobs, and replace the

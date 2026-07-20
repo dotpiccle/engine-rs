@@ -86,6 +86,25 @@ device evidence.
 Still required before the first production performance claim: run the complete probe on the actual
 lowest supported Android ARMv7 device and preserve its results with the release evidence.
 
+### 2026-07-20 secondary Android snapshot
+
+The release ARMv7/API-21 probe also ran successfully on a Galaxy S20 FE (`SM-G780F`, Android 13,
+5,590,964 KiB RAM). The phone reports an `arm64-v8a` primary ABI, while the deployed executable is
+the same 32-bit `armeabi-v7a` artifact intended for the minimum Android profile.
+
+| Workload                                    | Preparation     | Real-time factor | Worst 128-frame callback | Peak RSS        |
+| ------------------------------------------- | --------------- | ---------------- | ------------------------ | --------------- |
+| One 20 Hz saw                               | 58.727 ms       | 346.104×         | 6.885 µs                 | 8,144 KiB       |
+| Four voices and one moving filter           | 53.447 ms       | 36.933×          | 90.231 µs                | 8,424 KiB       |
+| Fourteen official examples (observed range) | 0.042–42.630 ms | 79.197–294.702×  | 10.500–73.538 µs         | 8,424–8,672 KiB |
+| 128 voices × 16 filters plus reverb         | 53.179 ms       | 0.536×           | 5,024.269 µs             | 9,084 KiB       |
+
+Every official example and the representative moving-filter workload rendered comfortably ahead of
+real time. The intentionally maximal accepted workload did not sustain live real time, confirming
+that the resource ceiling is an offline/ahead-of-playback acceptance limit. This modern phone is
+useful deployment-path evidence, but it does not satisfy the lowest-supported-device gate or justify
+a Galaxy J5 performance claim.
+
 ## Profiling
 
 - `cargo flamegraph --bench render` for flamegraph visualization
