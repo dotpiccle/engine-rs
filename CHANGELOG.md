@@ -11,7 +11,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Initial workspace scaffolding with `piccle`, `piccle-core`, `piccle-validate`, `piccle-dsp`,
   `piccle-render`, `piccle-fuzz`, and `xtask` crates (7 total).
-- Spec submodule pinned at commit `7789461`.
+- Spec submodule pinned at commit `465fd48`.
 - CI pipeline: fmt, clippy (feature powerset), test (3 OSes), MSRV, cross-check (Linux ARM64/ARMv7,
   WASM, Android ARM64/ARMv7, iOS ARM64/sim), audit, docs, typos, dprint (format check), gitleaks
   (secrets scanning), conformance, fuzz-smoke.
@@ -51,6 +51,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Make the packaged reverb-matrix drift test compare parsed JSON so Windows checkout line endings
+  cannot produce a false conformance failure.
+- Install `cargo-deny` and `cargo-audit` independently in CI and release jobs, and replace the
+  organization-licensed Gitleaks action with a checksum-pinned official Gitleaks binary.
 - Retain the normative triangle oscillator's 27th harmonic.
 - Classify finite integer literals beyond `u64` at the schema stage instead of as parse overflow.
 - Distinguish misspelled non-finite tokens from exact `NaN` and infinity tokens.

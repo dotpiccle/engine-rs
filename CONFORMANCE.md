@@ -6,8 +6,8 @@ revision is the commit containing this file.
 ## Specification under test
 
 - Repository: `https://github.com/dotpiccle/spec`
-- Pinned commit: `77894619ba38d98e9d9f3d258fd17a1bb5dfd3eb`
-- Audit date: 2026-07-19
+- Pinned commit: `465fd48683e2db98926f5af55043244c2d79f085`
+- Audit date: 2026-07-20
 - Canonical profile: 48 kHz, stereo, binary64 DSP, interleaved binary32 output after clipping
 
 The submodule commit is the conformance contract. Release automation checks out submodules
