@@ -1,21 +1,24 @@
 //! `cargo xtask conformance` — the spec-defined engine conformance gate of
 //! piccle-spec/docs/15-engine-build-guide.md §Engine conformance verification.
 
+use std::io::Write as _;
 use std::path::Path;
-use std::process::Command;
+use std::process::{Command, Stdio};
 
 use piccle_core::curve::Curve;
 use piccle_core::error::PiccleError;
 use piccle_core::model::{
-    ContourEntry, Document, FilterType, Layer, Source, ToneSource, VolumeContour, Waveform,
+    ContourEntry, Document, FilterType, Layer, Reverb, Source, SpatialEffect, ToneSource,
+    VolumeContour, Waveform,
 };
-use piccle_core::schedule::{frame_at, render_frequency_max};
+use piccle_core::schedule::{echo_repeat_count, frame_at, render_frequency_max};
+use piccle_dsp::echo::{Echo, EchoConfig};
 use piccle_dsp::filter::Biquad;
 use piccle_dsp::measure::{dc_magnitude, dft};
 use piccle_dsp::noise::Pcg32;
 use piccle_dsp::oscillator::{Oscillator, harmonic_coefficient};
 use piccle_dsp::reverb::{ReverbConfig, generate_reference_ir, terminal_window_frames};
-use piccle_render::plan::{RenderPlan, SourcePlan};
+use piccle_render::plan::{RenderPlan, SourcePlan, SpatialEffectPlan};
 use piccle_render::renderer::terminal_window_gain;
 use piccle_validate::Validator;
 
@@ -35,6 +38,8 @@ pub fn run(spec: &Path) -> i32 {
     check_render_cases(spec, &mut report);
     check_oscillator_spectral_purity(&mut report);
     check_reverb_reference_irs(spec, &mut report);
+    check_echo_reference(spec, &mut report);
+    check_parallel_spatial_effects(spec, &mut report);
     check_examples(spec, &mut report);
 
     println!();
@@ -67,7 +72,10 @@ struct Report {
 impl Report {
     fn check(&mut self, name: String, ok: bool) {
         self.checks += 1;
-        if !ok {
+        if ok {
+            println!("  PASS {name}");
+        }
+        else {
             self.failures += 1;
             println!("  FAIL {name}");
         }
@@ -82,6 +90,13 @@ impl Report {
 fn section(title: &str) {
     println!();
     println!("== {title} ==");
+}
+
+fn progress(name: &str) {
+    println!("  RUN  {name}");
+    if let Err(error) = std::io::stdout().flush() {
+        eprintln!("  WARN could not flush conformance progress: {error}");
+    }
 }
 
 // ---------------------------------------------------------------- A. valid
@@ -342,7 +357,11 @@ fn check_dsp_values(spec: &Path, report: &mut Report) {
         transition_curve: Curve::Linear,
     }]);
     doc.duration_ms = 4;
-    doc.reverb = Some(piccle_core::model::Reverb { amount: 0.25, tail_ms: 4, soften_hz: 4_000.0 });
+    doc.spatial_effects.push(SpatialEffect::Reverb(Reverb {
+        amount: 0.25,
+        tail_ms: 4,
+        soften_hz: 4_000.0,
+    }));
     let plan = RenderPlan::compile_validated(&doc, 44_100);
     let reverb = plan.reverb().expect("reverb");
     report.check(
@@ -406,7 +425,7 @@ fn tone_document(frequencies: Vec<ContourEntry>) -> Document {
         description: None,
         duration_ms: 10,
         master_volume_level: 1.0,
-        reverb: None,
+        spatial_effects: Vec::new(),
         layers: vec![Layer {
             id: "a".to_string(),
             start_ms: 0,
@@ -448,11 +467,13 @@ fn check_render_cases(spec: &Path, report: &mut Report) {
         let plan = RenderPlan::compile_validated(&document, sample_rate);
         let expected = &case["expected"];
 
+        let max_tail_effect =
+            plan.spatial_effects().iter().max_by_key(|effect| effect.tail_frames());
         let mut ok = plan.dry_end_frame() == expected["dry_end_frame"].as_u64().expect("dry")
             && plan.output_frames() == expected["output_end_frame"].as_u64().expect("out")
-            && plan.reverb().map_or(0, |r| r.tail_frames())
+            && max_tail_effect.map_or(0, SpatialEffectPlan::tail_frames)
                 == expected["tail_frames"].as_u64().expect("tail")
-            && plan.reverb().map_or(0, |r| r.window_frames())
+            && max_tail_effect.map_or(0, SpatialEffectPlan::window_frames)
                 == expected["terminal_window_frames"].as_u64().expect("window")
             && document.duration_ms == expected["document_duration_ms"].as_u64().expect("dur")
             && plan.layers().len() == expected["layers"].as_array().expect("layers").len();
@@ -482,6 +503,7 @@ fn check_oscillator_spectral_purity(report: &mut Report) {
     let frequencies = [375.0_f64, 1_000.0, 3_000.0, 8_000.0, 16_000.0];
     for wave in waves {
         for frequency in frequencies {
+            progress(&format!("{wave:?} @ {frequency} Hz DFT"));
             let mut oscillator = Oscillator::new(wave, rate);
             oscillator.set_frequency(frequency);
             let samples = (0..n).map(|_| oscillator.next_sample()).collect::<Vec<_>>();
@@ -580,6 +602,11 @@ module_spec.loader.exec_module(module)
 matrix = json.loads((root / "test-vectors" / "numeric" / "reverb-qualification-matrix.json").read_text())
 
 def metric_row(tail_ms, soften_hz, sample_rate):
+    print(
+        f"  RUN  normative reference {tail_ms}ms/{soften_hz}Hz/{sample_rate}Hz",
+        file=sys.stderr,
+        flush=True,
+    )
     left, right = module.FDN(tail_ms, soften_hz, sample_rate).generate()
     metrics = module.reverb_metrics.compute_all(left, right, {
         "sample_count": len(left),
@@ -612,6 +639,7 @@ fn check_reverb_reference_irs(spec: &Path, report: &mut Report) {
         serde_json::from_str(&manifest_text).expect("parse reverb manifest");
     for entry in manifest["fixtures"].as_array().expect("fixture entries") {
         let filename = entry["filename"].as_str().expect("fixture filename");
+        progress(&format!("canonical reverb fixture {filename}"));
         let tail_ms = entry["tail_ms"].as_u64().expect("fixture tail_ms");
         let sample_rate = entry["sample_rate"].as_u64().expect("fixture sample_rate") as u32;
         let soften_hz = entry["soften_hz"].as_f64().expect("fixture soften_hz");
@@ -707,6 +735,7 @@ fn check_reverb_qualification_matrix(spec: &Path, report: &mut Report) {
     let matrix: serde_json::Value =
         serde_json::from_str(&matrix_text).expect("parse qualification matrix");
     let entries = matrix["entries"].as_array().expect("qualification entries");
+    progress("generating normative reverb qualification references with Python");
     let references = match normative_reverb_reference_metrics(spec) {
         Ok(value) => value,
         Err(error) => {
@@ -725,6 +754,7 @@ fn check_reverb_qualification_matrix(spec: &Path, report: &mut Report) {
         let soften_hz = entry["soften_hz"].as_f64().expect("matrix soften_hz");
         let sample_rate = entry["sample_rate"].as_u64().expect("matrix sample_rate") as u32;
         let label = format!("matrix {tail_ms}ms/{soften_hz}Hz/{sample_rate}Hz");
+        progress(&label);
         check_generated_reverb_case(
             &ReverbQualificationCase {
                 label: &label,
@@ -753,6 +783,7 @@ fn check_reverb_qualification_matrix(spec: &Path, report: &mut Report) {
         let soften_hz = row["soften_hz"].as_f64().expect("profile soften_hz");
         let sample_rate = row["sample_rate"].as_u64().expect("profile sample_rate") as u32;
         let label = format!("profile {tail_ms}ms/{soften_hz}Hz/{sample_rate}Hz");
+        progress(&label);
         check_generated_reverb_case(
             &ReverbQualificationCase {
                 label: &label,
@@ -764,6 +795,110 @@ fn check_reverb_qualification_matrix(spec: &Path, report: &mut Report) {
             report,
         );
     }
+}
+
+// -------------------------------------------------------- F2. echo reference
+
+fn check_echo_reference(spec: &Path, report: &mut Report) {
+    section("F2. canonical echo impulse response");
+    let path = spec.join("test-vectors/numeric/echo-impulse-response.json");
+    let text = std::fs::read_to_string(path).expect("read echo impulse response");
+    let vector: serde_json::Value =
+        serde_json::from_str(&text).expect("parse echo impulse response");
+    let configuration = &vector["configuration"];
+    let derived = &vector["derived"];
+    let delay_ms = configuration["delay_ms"].as_u64().expect("echo delay_ms");
+    let feedback = configuration["feedback"].as_f64().expect("echo feedback");
+    let wet_gain = configuration["wet_gain"].as_f64().expect("echo wet_gain");
+    let damp_hz = configuration["damp_hz"].as_f64().expect("echo damp_hz");
+    let sample_rate = configuration["sample_rate"].as_u64().expect("echo sample_rate") as u32;
+    let repeat_count = echo_repeat_count(feedback).expect("bounded canonical echo");
+    let config = EchoConfig::new(delay_ms, feedback, damp_hz, sample_rate);
+    let delay_length = config.delay_length() as u64;
+    let tail_frames = repeat_count * delay_length;
+    let dry_end = derived["dry_end_frame"].as_u64().expect("echo dry end");
+    let output_end = dry_end + tail_frames;
+    let window = terminal_window_frames(tail_frames, sample_rate);
+
+    report.check(
+        "echo derived delay length".into(),
+        delay_length == derived["delay_length"].as_u64().expect("derived delay length"),
+    );
+    report.check(
+        "echo derived repeat count".into(),
+        repeat_count == derived["N_total"].as_u64().expect("derived repeat count"),
+    );
+    report.check(
+        "echo derived tail frames".into(),
+        tail_frames == derived["tail_frames"].as_u64().expect("derived tail frames"),
+    );
+    report.check(
+        "echo derived output end".into(),
+        output_end == derived["output_end_frame"].as_u64().expect("derived output end"),
+    );
+    report.check(
+        "echo derived terminal window".into(),
+        window == derived["terminal_window_W"].as_u64().expect("derived terminal window"),
+    );
+
+    let checkpoints = &vector["checkpoints"];
+    let checkpoint_frames = [
+        ("frame_0_impulse", 0),
+        ("frame_dry_end", dry_end),
+        ("frame_delay_length_first_echo", delay_length),
+        ("frame_2x_delay_length_second_echo", 2 * delay_length),
+        ("frame_3x_delay_length_third_echo", 3 * delay_length),
+        ("frame_mid_tail", dry_end + tail_frames / 2),
+        ("frame_window_start", output_end - window),
+        ("frame_T_minus_1_last", output_end - 1),
+    ];
+    let impulse = vector["impulse_value"].as_f64().expect("echo impulse");
+    let mut actual = [None; 8];
+    let mut echo = Echo::new(&config);
+    let mut stereo_symmetric = true;
+    progress(&format!("rendering {output_end} canonical echo frames"));
+    for frame in 0..output_end {
+        let dry = if frame == 0 { impulse } else { 0.0 };
+        let terminal_gain = terminal_window_gain(frame, output_end, window);
+        let (wet_left, wet_right) = echo.process(dry, dry, terminal_gain);
+        stereo_symmetric &= wet_left.to_bits() == wet_right.to_bits();
+        for (index, (_, checkpoint_frame)) in checkpoint_frames.iter().enumerate() {
+            if frame == *checkpoint_frame {
+                actual[index] = Some(dry + wet_gain * wet_left);
+            }
+        }
+    }
+    report.check("echo preserves symmetric stereo input".into(), stereo_symmetric);
+    for (index, (name, _)) in checkpoint_frames.iter().enumerate() {
+        let expected = checkpoints[*name].as_f64().expect("echo checkpoint");
+        let value = actual[index].expect("captured echo checkpoint");
+        let tolerance = 1e-10 * expected.abs().max(1.0);
+        report.check(format!("echo checkpoint {name}"), (value - expected).abs() <= tolerance);
+    }
+}
+
+// ----------------------------------------------- F3. parallel spatial effects
+
+fn check_parallel_spatial_effects(spec: &Path, report: &mut Report) {
+    section("F3. parallel spatial-effect order independence");
+    let dir = spec.join("test-vectors/valid");
+    let forward_bytes = std::fs::read(dir.join("spatial-effects-reverb-then-echo.json"))
+        .expect("read forward spatial-effects fixture");
+    let reverse_bytes = std::fs::read(dir.join("spatial-effects-echo-then-reverb.json"))
+        .expect("read reverse spatial-effects fixture");
+    progress("rendering both spatial-effect array orders");
+    let forward_plan = piccle::prepare(&forward_bytes).expect("prepare forward spatial effects");
+    let reverse_plan = piccle::prepare(&reverse_bytes).expect("prepare reverse spatial effects");
+    let forward_output = piccle::Renderer::render_to_vec(&forward_plan).expect("render forward");
+    let reverse_output = piccle::Renderer::render_to_vec(&reverse_plan).expect("render reverse");
+    report.check(
+        "parallel effects produce identical output in either order".into(),
+        forward_output == reverse_output,
+    );
+    report.check(
+        "parallel effects produce identical output length in either order".into(),
+        forward_plan.output_frames() == reverse_plan.output_frames(),
+    );
 }
 
 fn check_generated_reverb_case(case: &ReverbQualificationCase<'_>, report: &mut Report) {
@@ -824,10 +959,11 @@ fn normative_reverb_reference_metrics(spec: &Path) -> Result<serde_json::Value, 
     let output = Command::new("python3")
         .args(["-c", REVERB_REFERENCE_METRICS_SCRIPT])
         .arg(spec)
+        .stderr(Stdio::inherit())
         .output()
         .map_err(|error| format!("could not launch Python generator: {error}"))?;
     if !output.status.success() {
-        return Err(String::from_utf8_lossy(&output.stderr).trim().to_owned());
+        return Err(format!("Python generator exited with {}", output.status));
     }
     serde_json::from_slice(&output.stdout)
         .map_err(|error| format!("generator returned invalid metric JSON: {error}"))
@@ -1118,12 +1254,24 @@ fn check_examples(spec: &Path, report: &mut Report) {
         .collect::<Vec<_>>();
     entries.sort();
     for name in entries {
+        progress(&format!("rendering examples/{}", name.to_string_lossy()));
         let bytes = std::fs::read(dir.join(&name)).expect("read example");
         let ok = match piccle::prepare(&bytes) {
             Ok(plan) => {
                 let document = Validator::validate(&bytes).expect("valid example");
-                let tail_ms = document.reverb.map_or(0, |r| r.tail_ms);
-                let expected_frames = frame_at(document.duration_ms + tail_ms, 48_000);
+                let tail_frames = document
+                    .spatial_effects
+                    .iter()
+                    .map(|effect| match effect {
+                        SpatialEffect::Reverb(reverb) => frame_at(reverb.tail_ms, 48_000),
+                        SpatialEffect::Echo(echo) => {
+                            let repeat_count = echo_repeat_count(echo.feedback).unwrap_or(0);
+                            repeat_count * frame_at(echo.delay_ms, 48_000).max(1)
+                        }
+                    })
+                    .max()
+                    .unwrap_or(0);
+                let expected_frames = frame_at(document.duration_ms, 48_000) + tail_frames;
                 match piccle::Renderer::render_to_vec(&plan) {
                     Ok(output) => {
                         plan.output_frames() == expected_frames

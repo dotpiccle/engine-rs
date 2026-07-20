@@ -11,13 +11,15 @@ Document {
     ),
     duration_ms: 350,
     master_volume_level: 1.0,
-    reverb: Some(
-        Reverb {
-            amount: 0.25,
-            tail_ms: 300,
-            soften_hz: 6000.0,
-        },
-    ),
+    spatial_effects: [
+        Reverb(
+            Reverb {
+                amount: 0.25,
+                tail_ms: 300,
+                soften_hz: 6000.0,
+            },
+        ),
+    ],
     layers: [
         Layer {
             id: "bell-1",

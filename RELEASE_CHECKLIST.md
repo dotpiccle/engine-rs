@@ -18,6 +18,9 @@ not release evidence. Do not tag while any applicable item remains unchecked.
 ## Rust quality and portability
 
 - [ ] `cargo nextest run --workspace --all-features`
+- [ ] Confirm library line coverage remains above the CI floor with
+      `cargo llvm-cov nextest --workspace --all-features --ignore-filename-regex 'xtask/'
+      --fail-under-lines 90`.
 - [ ] `cargo test --doc --workspace --all-features`
 - [ ] `cargo +nightly fmt --all -- --check`
 - [ ] `cargo clippy --workspace --all-targets --all-features -- -D warnings`
@@ -34,6 +37,12 @@ not release evidence. Do not tag while any applicable item remains unchecked.
 
 ## Security and supply chain
 
+- [ ] Protect `main` with a branch ruleset that requires the full CI workflow and pull requests, and
+      blocks force pushes and deletion.
+- [ ] Protect release tags and configure a `release` environment with deployment approval before
+      granting crates.io publication credentials.
+- [ ] Enable Dependabot security updates, secret scanning, secret-scanning push protection, and the
+      repository policy requiring Actions to be pinned to full commit SHAs.
 - [ ] `cargo deny check`
 - [ ] `cargo audit`
 - [ ] Compile the detached fuzz crate: `cargo check --manifest-path crates/piccle-fuzz/Cargo.toml`.
@@ -53,14 +62,14 @@ not release evidence. Do not tag while any applicable item remains unchecked.
 - [ ] Preserve device model, Android version, CPU/RAM context, preparation latency, process peak
       RSS, throughput, real-time factor, maximum 128-frame callback latency, and callback-spike
       ratio.
-- [ ] Profile all 14 official examples, the 20 Hz oscillator risk case, the moving-filter case, and
+- [ ] Profile all 15 official examples, the 20 Hz oscillator risk case, the moving-filter case, and
       the published maximum workload on that device.
 - [ ] State explicitly which workloads are live, ahead-of-playback, cached, or offline; resource
       acceptance ceilings are not live-real-time promises.
 - [ ] Listen on neutral headphones, full-range speakers, a small-device speaker, and the
       lowest-bandwidth supported output path.
 - [ ] Check recognizability, onset/ending clicks, clipping, loudness consistency, oscillator
-      aliasing, filter stability, and reverb cutoff.
+      aliasing, filter stability, reverb cutoff, and echo timing/damping.
 - [ ] A/B check wet onset, echo density, early/late energy, stereo decorrelation, brightness, decay,
       metallic ringing, and discrete echoes.
 
@@ -81,5 +90,9 @@ not release evidence. Do not tag while any applicable item remains unchecked.
 - [ ] Create a signed tag from the already validated commit; never repair code after tagging.
 - [ ] Let the tag workflow publish crates in dependency order and verify each version becomes
       visible through the crates.io API.
+- [ ] After the first crates.io publication, replace the long-lived registry token with crates.io
+      Trusted Publishing (OIDC) scoped to the protected `release` environment.
+- [ ] From v0.1.1 onward, run `cargo-semver-checks` against the latest published baseline before
+      tagging.
 - [ ] Verify docs.rs builds and create the GitHub Release with the conformance/device/listening
       evidence.

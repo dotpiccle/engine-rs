@@ -34,6 +34,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   128 active voices with the following steady frame.
 - Conformance checks apply the specification's exact scaled-epsilon bound to `sin`/`cos`-derived
   balance and filter aids.
+- Root-level parallel `spatial_effects` with normative additive reverb and lowpass-feedback echo,
+  deterministic echo-tail scheduling, validation fixtures, and canonical impulse checkpoints.
+- Conformance progress output for every fixture and explicit `RUN` markers before CPU-heavy DFT,
+  reference-generation, spatial-effect, and example-render phases.
 
 ### Changed
 
@@ -48,6 +52,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Reverb configuration seeds now use the language-neutral wrapping formula from the normative FDN.
 - Reverb conformance now covers the mandatory 10-case qualification matrix and all 40 noncanonical
   combinations of the five canonical tails with the representative 8–192 kHz profile rates.
+- Spatial effects are compiled into a canonical order so parallel output is independent of JSON
+  array order, including binary32 storage results.
 
 ### Fixed
 
@@ -83,6 +89,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   updates are actually scheduled.
 - Make the pre-push test fallback depend on nextest availability rather than a failed nextest run,
   so a real test failure cannot be retried under a different runner and accidentally hidden.
+- Correct the non-additive 44.1 kHz reverb-tail aid and compare Gram-Schmidt matrix normalization
+  within the published cross-platform binary64 tolerance.
 
 ### Performance
 
@@ -99,6 +107,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Skip wet-path calibration and state construction when the declared reverb amount is zero while
   preserving the spec-defined output timeline.
 - Remove JSON and serialization dependencies from the render-side crate graph.
+- Keep echo delay work constant per frame across representative 20–2,000 ms delay lengths and box
+  only the large reverb plan/state variants to avoid inflating echo-only plan memory.
 
 ### Security
 
@@ -106,8 +116,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Bound nonzero reverb preparation to 2,880,000 tail frames. This preserves a 60-second canonical
   tail while rejecting high-rate configurations before they multiply calibration memory and CPU; an
   amount-zero reverb remains timeline-only and does not consume the wet-state budget.
+- Bound documents to 16 parallel spatial effects, 2,000 ms per echo delay line, and a 60-second
+  effective echo tail after format validation.
+- Require at least 90% library line coverage in CI; the release audit measured 95.19%.
+- Harden tagged releases by rejecting commits outside `main`, verifying the complete multi-crate
+  archive set before the first upload, serializing same-tag runs, and isolating GitHub write access
+  to the final release-creation job.
 - Supply-chain gates: cargo-deny (advisories, licenses, bans, sources) and cargo-audit (RUSTSEC) run
   in CI.
-- gitleaks runs in CI via GitHub Action (secrets scanning).
+- A checksum-pinned Gitleaks binary scans the complete history in CI.
 - Parser fuzzing completed more than 7.9 million seeded executions without a crash during the
   release audit.

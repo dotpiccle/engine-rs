@@ -20,8 +20,8 @@
 use criterion::{BatchSize, Criterion, Throughput, criterion_group, criterion_main};
 use piccle_core::curve::Curve;
 use piccle_core::model::{
-    ContourEntry, Document, Filter, FilterType, Layer, Reverb, Source, ToneSource, VolumeContour,
-    Waveform,
+    ContourEntry, Document, Echo, Filter, FilterType, Layer, Reverb, Source, SpatialEffect,
+    ToneSource, VolumeContour, Waveform,
 };
 use piccle_render::{RenderPlan, Renderer};
 
@@ -71,14 +71,44 @@ fn boundary_contour_layer(id: &str, duration_ms: u64) -> Layer {
 }
 
 fn document(layers: Vec<Layer>, reverb: Option<Reverb>, duration_ms: u64) -> Document {
+    let spatial_effects =
+        reverb.map_or_else(Vec::new, |reverb| vec![SpatialEffect::Reverb(reverb)]);
+    document_with_spatial_effects(layers, spatial_effects, duration_ms)
+}
+
+fn document_with_spatial_effects(
+    layers: Vec<Layer>,
+    spatial_effects: Vec<SpatialEffect>,
+    duration_ms: u64,
+) -> Document {
     Document {
         name: Some("bench".to_owned()),
         description: None,
         duration_ms,
         master_volume_level: 1.0,
-        reverb,
+        spatial_effects,
         layers,
     }
+}
+
+fn bench_echo_delay_cost(c: &mut Criterion) {
+    let mut group = c.benchmark_group("echo_delay_cost");
+    group.throughput(Throughput::Elements(CHUNK_FRAMES as u64));
+    for delay_ms in [20_u64, 90, 200, 2_000] {
+        let doc = document_with_spatial_effects(
+            vec![tone_layer("a", 1_000, Waveform::Sine, 440.0)],
+            vec![SpatialEffect::Echo(Echo {
+                delay_ms,
+                feedback: 0.6,
+                wet_gain: 0.3,
+                damp_hz: 4_000.0,
+            })],
+            1_000,
+        );
+        let plan = RenderPlan::compile_validated(&doc, SAMPLE_RATE);
+        group.bench_function(format!("delay_{delay_ms}ms"), |b| bench_plan(b, &plan));
+    }
+    group.finish();
 }
 
 fn bench_plan(b: &mut criterion::Bencher, plan: &RenderPlan) {
@@ -231,6 +261,7 @@ fn bench_maximum_supported_workload(c: &mut Criterion) {
 criterion_group!(
     benches,
     bench_reverb_tail_flat_cost,
+    bench_echo_delay_cost,
     bench_voice_scaling,
     bench_inactive_voice_gating,
     bench_contour_boundary_cost,

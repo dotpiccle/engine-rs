@@ -137,20 +137,38 @@ fn layer_body() -> impl Strategy<Value = Value> {
         })
 }
 
-fn reverb() -> impl Strategy<Value = Value> {
-    (unit_interval(), 1u64..=200, 200u32..=12_000).prop_map(
-        |(amount, tail, soften)| json!({"amount": amount, "tail_ms": tail, "soften_hz": soften}),
-    )
+fn spatial_effect() -> impl Strategy<Value = Value> {
+    let reverb = (unit_interval(), 1u64..=200, 200u32..=12_000).prop_map(
+        |(amount, tail, soften)| {
+            json!({"type": "reverb", "amount": amount, "tail_ms": tail, "soften_hz": soften})
+        },
+    );
+    let echo = (1u64..=50, 0u32..=700, unit_interval(), 200u32..=12_000).prop_map(
+        |(delay, feedback, wet_gain, damp)| {
+            json!({
+                "type": "echo",
+                "delay_ms": delay,
+                "feedback": f64::from(feedback) / 1000.0,
+                "wet_gain": wet_gain,
+                "damp_hz": damp,
+            })
+        },
+    );
+    prop_oneof![reverb, echo]
+}
+
+fn spatial_effects() -> impl Strategy<Value = Vec<Value>> {
+    prop_oneof![Just(Vec::new()), prop::collection::vec(spatial_effect(), 1..=3)]
 }
 
 /// A serialized, schema-valid Piccle document with 1–3 layers.
 fn document_bytes() -> impl Strategy<Value = Vec<u8>> {
     (
         prop::collection::vec(layer_body(), 1..=3),
-        prop::option::of(reverb()),
+        spatial_effects(),
         prop::option::of(unit_interval()),
     )
-        .prop_map(|(bodies, reverb, master)| {
+        .prop_map(|(bodies, spatial_effects, master)| {
             let layers: Vec<Value> = bodies
                 .into_iter()
                 .enumerate()
@@ -161,8 +179,8 @@ fn document_bytes() -> impl Strategy<Value = Vec<u8>> {
                 })
                 .collect();
             let mut document = json!({"piccle": "1.0", "name": "proptest", "layers": layers});
-            if let Some(reverb) = reverb {
-                document["reverb"] = reverb;
+            if !spatial_effects.is_empty() {
+                document["spatial_effects"] = json!(spatial_effects);
             }
             if let Some(master) = master {
                 document["master_volume_level"] = json!(master);

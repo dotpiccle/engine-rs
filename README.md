@@ -52,8 +52,9 @@ assets and refuses allocations above 64 MiB; stream longer timelines in fixed-si
 - Immutable preparation output; no JSON, schema traversal, sorting, or allocation while rendering.
 - Canonical 48 kHz stereo binary64 DSP with deterministic PCG32 noise and mandatory final clipping.
 - Portable subnormal flushing for bounded DSP cost on older application processors.
-- Published engine ceilings for duration, layers, filters, contour entries, reverb tail, and sample
-  rate, including a combined wet-tail frame budget that bounds high-rate preparation cost.
+- Published engine ceilings for duration, layers, filters, contour entries, spatial effects,
+  reverb/echo tails, echo delay state, and sample rate, including a combined wet-tail frame budget
+  that bounds high-rate reverb preparation cost.
 
 The renderer is portable library code, not a real-time audio thread or platform playback API. A
 prepared plan may be shared, but each playback owns a separate mutable `Renderer`.
@@ -73,7 +74,9 @@ after Piccle clipping.
 | Document duration           | At most 600,000 ms                                                  |
 | Layers / filters            | 128 layers; 16 serial filters per layer                             |
 | Contour size                | 1,024 entries per individual contour                                |
+| Spatial effects             | At most 16 parallel effects per document                            |
 | Declared reverb tail        | At most 60,000 ms                                                   |
+| Echo delay / effective tail | At most 2,000 ms per delay; at most 60,000 ms effective tail        |
 | Nonzero wet preparation     | At most 2,880,000 tail frames (60 seconds at the canonical profile) |
 | One-shot convenience output | At most 64 MiB through `Renderer::render_to_vec`                    |
 | Streaming output            | Bounded caller-owned blocks through `Renderer::render_into`         |
@@ -90,7 +93,7 @@ Low-end-device live limits must be established from the workload and callback si
 | `piccle`          | Supported application API and validation boundary             |
 | `piccle-core`     | Document model, typed errors, curves, and frame rules         |
 | `piccle-validate` | Strict JSON parser plus structural and semantic validation    |
-| `piccle-dsp`      | Oscillators, deterministic noise, biquads, and FDN reverb     |
+| `piccle-dsp`      | Oscillators, deterministic noise, biquads, FDN reverb, echo   |
 | `piccle-render`   | Immutable schedule and allocation-free production render loop |
 | `piccle-fuzz`     | Detached libFuzzer targets for arbitrary untrusted bytes      |
 | `xtask`           | Setup, conformance, benchmark, and spec-pin automation        |

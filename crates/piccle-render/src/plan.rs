@@ -7,8 +7,11 @@
 //! rounded independently.
 
 use piccle_core::curve::Curve;
-use piccle_core::model::{ContourEntry, Document, FilterType, NoiseCharacter, Source, Waveform};
-use piccle_core::schedule::{frame_at, render_frequency_max};
+use piccle_core::model::{
+    ContourEntry, Document, FilterType, NoiseCharacter, Source, SpatialEffect, Waveform,
+};
+use piccle_core::schedule::{echo_repeat_count, frame_at, render_frequency_max};
+use piccle_dsp::echo::EchoConfig;
 use piccle_dsp::reverb::{ReverbConfig, terminal_window_frames};
 
 /// One contour segment: hold `start_value` through `hold_end`, then move to
@@ -259,16 +262,13 @@ impl ReverbPlan {
         self.config.as_ref()
     }
 
-    /// Declared dry/wet crossfade amount.
+    /// Declared additive wet gain.
     #[must_use]
     pub fn amount(&self) -> f64 {
         self.amount
     }
 
-    /// Production tail length: `output_end_frame - dry_end_frame`.
-    ///
-    /// Spec: piccle-spec/docs/07-reverb.md — `N` MUST be derived by
-    /// subtracting absolute boundaries, never by rounding `tail_ms`.
+    /// Production tail length: `frame(tail_ms)`.
     #[must_use]
     pub fn tail_frames(&self) -> u64 {
         self.tail_frames
@@ -278,6 +278,71 @@ impl ReverbPlan {
     #[must_use]
     pub fn window_frames(&self) -> u64 {
         self.window_frames
+    }
+}
+
+/// Compiled echo: prepared delay-line config plus production tail schedule.
+#[derive(Debug, Clone)]
+pub struct EchoPlan {
+    config: Option<EchoConfig>,
+    wet_gain: f64,
+    tail_frames: u64,
+    window_frames: u64,
+}
+
+impl EchoPlan {
+    /// Prepared echo configuration, omitted when `wet_gain` makes the wet path
+    /// inaudible.
+    #[must_use]
+    pub fn config(&self) -> Option<&EchoConfig> {
+        self.config.as_ref()
+    }
+
+    /// Declared additive wet gain.
+    #[must_use]
+    pub fn wet_gain(&self) -> f64 {
+        self.wet_gain
+    }
+
+    /// Production tail length: `N_total × delay_length`.
+    #[must_use]
+    pub fn tail_frames(&self) -> u64 {
+        self.tail_frames
+    }
+
+    /// Automatic terminal-window width `W` in frames.
+    #[must_use]
+    pub fn window_frames(&self) -> u64 {
+        self.window_frames
+    }
+}
+
+/// Compiled whole-document spatial effect.
+#[derive(Debug, Clone)]
+pub enum SpatialEffectPlan {
+    /// Diffuse additive reverb.
+    Reverb(Box<ReverbPlan>),
+    /// Discrete additive echo.
+    Echo(EchoPlan),
+}
+
+impl SpatialEffectPlan {
+    /// Effect tail length in frames.
+    #[must_use]
+    pub fn tail_frames(&self) -> u64 {
+        match self {
+            Self::Reverb(reverb) => reverb.tail_frames(),
+            Self::Echo(echo) => echo.tail_frames(),
+        }
+    }
+
+    /// Effect terminal-window width in frames.
+    #[must_use]
+    pub fn window_frames(&self) -> u64 {
+        match self {
+            Self::Reverb(reverb) => reverb.window_frames(),
+            Self::Echo(echo) => echo.window_frames(),
+        }
     }
 }
 
@@ -295,7 +360,7 @@ pub struct RenderPlan {
     layers: Vec<LayerPlan>,
     start_order: Vec<usize>,
     end_order: Vec<usize>,
-    reverb: Option<ReverbPlan>,
+    spatial_effects: Vec<SpatialEffectPlan>,
 }
 
 impl RenderPlan {
@@ -310,9 +375,6 @@ impl RenderPlan {
     #[must_use]
     pub fn compile_validated(document: &Document, sample_rate: u32) -> Self {
         let dry_end_frame = frame_at(document.duration_ms, sample_rate);
-        let output_end_frame = document.reverb.as_ref().map_or(dry_end_frame, |reverb| {
-            frame_at(document.duration_ms + reverb.tail_ms, sample_rate)
-        });
 
         let layers: Vec<LayerPlan> = document
             .layers
@@ -397,13 +459,54 @@ impl RenderPlan {
         let mut end_order = (0..layers.len()).collect::<Vec<_>>();
         end_order.sort_by_key(|&index| (layers[index].active_end_frame, index));
 
-        let reverb = document.reverb.as_ref().map(|reverb| {
-            let config = (reverb.amount > 0.0)
-                .then(|| ReverbConfig::new(reverb.tail_ms, reverb.soften_hz, sample_rate));
-            let tail_frames = output_end_frame - dry_end_frame;
-            let window_frames = terminal_window_frames(tail_frames, sample_rate);
-            ReverbPlan { config, amount: reverb.amount, tail_frames, window_frames }
+        let mut spatial_effects = document.spatial_effects.iter().collect::<Vec<_>>();
+        spatial_effects.sort_by_key(|effect| match effect {
+            SpatialEffect::Reverb(reverb) => {
+                [0, reverb.tail_ms, reverb.amount.to_bits(), reverb.soften_hz.to_bits(), 0]
+            }
+            SpatialEffect::Echo(echo) => [
+                1,
+                echo.delay_ms,
+                echo.feedback.to_bits(),
+                echo.wet_gain.to_bits(),
+                echo.damp_hz.to_bits(),
+            ],
         });
+        let spatial_effects = spatial_effects
+            .into_iter()
+            .map(|effect| match effect {
+                SpatialEffect::Reverb(reverb) => {
+                    let tail_frames = frame_at(reverb.tail_ms, sample_rate);
+                    let config = (reverb.amount > 0.0)
+                        .then(|| ReverbConfig::new(reverb.tail_ms, reverb.soften_hz, sample_rate));
+                    let window_frames = terminal_window_frames(tail_frames, sample_rate);
+                    SpatialEffectPlan::Reverb(Box::new(ReverbPlan {
+                        config,
+                        amount: reverb.amount,
+                        tail_frames,
+                        window_frames,
+                    }))
+                }
+                SpatialEffect::Echo(echo) => {
+                    let repeat_count = echo_repeat_count(echo.feedback).unwrap_or(0);
+                    let delay_length = frame_at(echo.delay_ms, sample_rate).max(1);
+                    let tail_frames = repeat_count * delay_length;
+                    let config = (echo.wet_gain > 0.0).then(|| {
+                        EchoConfig::new(echo.delay_ms, echo.feedback, echo.damp_hz, sample_rate)
+                    });
+                    let window_frames = terminal_window_frames(tail_frames, sample_rate);
+                    SpatialEffectPlan::Echo(EchoPlan {
+                        config,
+                        wet_gain: echo.wet_gain,
+                        tail_frames,
+                        window_frames,
+                    })
+                }
+            })
+            .collect::<Vec<_>>();
+        let max_tail_frames =
+            spatial_effects.iter().map(SpatialEffectPlan::tail_frames).max().unwrap_or(0);
+        let output_end_frame = dry_end_frame + max_tail_frames;
 
         Self {
             sample_rate,
@@ -414,7 +517,7 @@ impl RenderPlan {
             layers,
             start_order,
             end_order,
-            reverb,
+            spatial_effects,
         }
     }
 
@@ -436,13 +539,13 @@ impl RenderPlan {
         self.dry_end_frame
     }
 
-    /// Total output length in frames: `frame(D)` or `frame(D + tail_ms)`.
+    /// Total output length in frames: `frame(D) + max_i(tail_frames_i)`.
     #[must_use]
     pub fn output_frames(&self) -> u64 {
         self.output_end_frame
     }
 
-    /// Root master gain, applied after the dry/wet crossfade.
+    /// Root master gain, applied after spatial effects.
     #[must_use]
     pub fn master_volume_level(&self) -> f64 {
         self.master_volume_level
@@ -462,10 +565,19 @@ impl RenderPlan {
         &self.end_order
     }
 
-    /// Compiled reverb, when the document declares one.
+    /// Compiled spatial effects.
+    #[must_use]
+    pub fn spatial_effects(&self) -> &[SpatialEffectPlan] {
+        &self.spatial_effects
+    }
+
+    /// First compiled reverb, when the document declares one.
     #[must_use]
     pub fn reverb(&self) -> Option<&ReverbPlan> {
-        self.reverb.as_ref()
+        self.spatial_effects.iter().find_map(|effect| match effect {
+            SpatialEffectPlan::Reverb(reverb) => Some(reverb.as_ref()),
+            SpatialEffectPlan::Echo(_) => None,
+        })
     }
 }
 

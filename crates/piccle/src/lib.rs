@@ -124,11 +124,22 @@ pub const MAX_FILTERS_PER_LAYER: usize = 16;
 /// Maximum number of entries in any single contour.
 pub const MAX_CONTOUR_ENTRIES: usize = 1024;
 
-/// Maximum declared reverb tail (60 seconds).
+/// Maximum number of spatial effects per document.
+pub const MAX_SPATIAL_EFFECTS: usize = 16;
+
+/// Maximum declared reverb tail or echo effective tail (60 seconds).
 ///
-/// A nonzero wet path is also subject to [`MAX_REVERB_TAIL_FRAMES`], so the
+/// A nonzero reverb path is also subject to [`MAX_REVERB_TAIL_FRAMES`], so its
 /// effective millisecond ceiling is lower above the canonical sample rate.
+/// Echo delay-line length is separately bounded by [`MAX_ECHO_DELAY_MS`].
 pub const MAX_TAIL_MS: u64 = 60_000;
+
+/// Maximum echo delay-line length in milliseconds.
+///
+/// At 48 kHz binary64 stereo this is about 1.5 MiB of delay-line state per
+/// audible echo, enough for UI echoes while staying practical on low-end
+/// mobile devices.
+pub const MAX_ECHO_DELAY_MS: u64 = 2_000;
 
 /// Maximum reverb-tail frames prepared for a nonzero wet path.
 ///
@@ -169,8 +180,8 @@ pub fn prepare(bytes: &[u8]) -> PiccleResult<RenderPlan> {
 /// # Errors
 ///
 /// Any validation-stage [`PiccleError`], or `Unsupported` when a valid
-/// document, render rate, or rate-dependent reverb preparation exceeds a
-/// published engine limit.
+/// document, render rate, or rate-dependent spatial-effect preparation exceeds
+/// a published engine limit.
 pub fn prepare_with_rate(bytes: &[u8], sample_rate: u32) -> PiccleResult<RenderPlan> {
     if sample_rate < MIN_SAMPLE_RATE {
         return Err(PiccleError::Unsupported {
@@ -216,21 +227,51 @@ fn check_engine_limits(document: &Document, sample_rate: u32) -> PiccleResult<()
             max: MAX_LAYERS.to_string(),
         });
     }
-    if let Some(reverb) = &document.reverb {
-        if reverb.tail_ms > MAX_TAIL_MS {
-            return Err(PiccleError::Unsupported {
-                limit: "max_tail_ms",
-                actual: reverb.tail_ms.to_string(),
-                max: MAX_TAIL_MS.to_string(),
-            });
-        }
-        let tail_frames = piccle_core::schedule::frame_at(reverb.tail_ms, sample_rate);
-        if reverb.amount > 0.0 && tail_frames > MAX_REVERB_TAIL_FRAMES {
-            return Err(PiccleError::Unsupported {
-                limit: "max_reverb_tail_frames",
-                actual: tail_frames.to_string(),
-                max: MAX_REVERB_TAIL_FRAMES.to_string(),
-            });
+    if document.spatial_effects.len() > MAX_SPATIAL_EFFECTS {
+        return Err(PiccleError::Unsupported {
+            limit: "max_spatial_effects",
+            actual: document.spatial_effects.len().to_string(),
+            max: MAX_SPATIAL_EFFECTS.to_string(),
+        });
+    }
+    for effect in &document.spatial_effects {
+        match effect {
+            piccle_core::model::SpatialEffect::Reverb(reverb) => {
+                if reverb.tail_ms > MAX_TAIL_MS {
+                    return Err(PiccleError::Unsupported {
+                        limit: "max_tail_ms",
+                        actual: reverb.tail_ms.to_string(),
+                        max: MAX_TAIL_MS.to_string(),
+                    });
+                }
+                let tail_frames = piccle_core::schedule::frame_at(reverb.tail_ms, sample_rate);
+                if reverb.amount > 0.0 && tail_frames > MAX_REVERB_TAIL_FRAMES {
+                    return Err(PiccleError::Unsupported {
+                        limit: "max_reverb_tail_frames",
+                        actual: tail_frames.to_string(),
+                        max: MAX_REVERB_TAIL_FRAMES.to_string(),
+                    });
+                }
+            }
+            piccle_core::model::SpatialEffect::Echo(echo) => {
+                if echo.delay_ms > MAX_ECHO_DELAY_MS {
+                    return Err(PiccleError::Unsupported {
+                        limit: "max_echo_delay_ms",
+                        actual: echo.delay_ms.to_string(),
+                        max: MAX_ECHO_DELAY_MS.to_string(),
+                    });
+                }
+                let repeat_count =
+                    piccle_core::schedule::echo_repeat_count(echo.feedback).unwrap_or(0);
+                let tail_ms = echo.delay_ms.saturating_mul(repeat_count);
+                if tail_ms > MAX_TAIL_MS {
+                    return Err(PiccleError::Unsupported {
+                        limit: "max_tail_ms",
+                        actual: tail_ms.to_string(),
+                        max: MAX_TAIL_MS.to_string(),
+                    });
+                }
+            }
         }
     }
     for layer in &document.layers {

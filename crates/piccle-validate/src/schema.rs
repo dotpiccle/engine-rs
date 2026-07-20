@@ -84,6 +84,14 @@ fn check_num_range(value: &Value, path: &str, minimum: f64, maximum: f64) -> Pic
     Ok(())
 }
 
+fn check_num_exclusive_max(value: &Value, path: &str, maximum: f64) -> PiccleResult<()> {
+    let number = as_number(value, path)?;
+    if number >= maximum {
+        return Err(err("schema.exclusiveMaximum", path.to_owned(), "number at or above maximum"));
+    }
+    Ok(())
+}
+
 /// Structural object checks: unknown members in document order, then
 /// required members in schema-declared order.
 fn check_object(
@@ -132,7 +140,7 @@ pub fn validate_document(value: &Value) -> PiccleResult<()> {
             "description",
             "duration_ms",
             "master_volume_level",
-            "reverb",
+            "spatial_effects",
             "layers",
         ],
         &["piccle", "layers"],
@@ -155,7 +163,7 @@ pub fn validate_document(value: &Value) -> PiccleResult<()> {
             }
             "duration_ms" => check_int_range(val, &member_path, 1.0, MAX_SAFE_INTEGER_MS)?,
             "master_volume_level" => check_num_range(val, &member_path, 0.0, 1.0)?,
-            "reverb" => validate_reverb(val, &member_path)?,
+            "spatial_effects" => validate_spatial_effects(val, &member_path)?,
             "layers" => validate_layers(val, &member_path)?,
             _ => {}
         }
@@ -386,20 +394,77 @@ fn validate_fade_stage(value: &Value, path: &str) -> PiccleResult<()> {
     Ok(())
 }
 
-fn validate_reverb(value: &Value, path: &str) -> PiccleResult<()> {
+fn validate_spatial_effects(value: &Value, path: &str) -> PiccleResult<()> {
+    let arr = as_array(value, path)?;
+    for (i, effect) in arr.iter().enumerate() {
+        validate_spatial_effect(effect, &format!("{path}[{i}]"))?;
+    }
+    Ok(())
+}
+
+fn validate_spatial_effect(value: &Value, path: &str) -> PiccleResult<()> {
     let obj = as_object(value, path)?;
+    let type_path = format!("{path}.type");
+    let Some(type_value) = obj.get("type")
+    else {
+        return Err(err("schema.required", type_path, "required member missing"));
+    };
+    let effect_type = as_string(type_value, &type_path)?;
+    match effect_type {
+        "reverb" => validate_reverb(obj, path),
+        "echo" => validate_echo(obj, path),
+        _ => Err(err("schema.enum", type_path, "spatial effect type must be reverb or echo")),
+    }
+}
+
+fn validate_reverb(obj: &Map<String, Value>, path: &str) -> PiccleResult<()> {
     check_object(
         obj,
         path,
-        &["amount", "tail_ms", "soften_hz"],
-        &["amount", "tail_ms", "soften_hz"],
+        &["type", "amount", "tail_ms", "soften_hz"],
+        &["type", "amount", "tail_ms", "soften_hz"],
     )?;
     for (key, val) in obj {
         let member_path = format!("{path}.{key}");
         match key.as_str() {
+            "type" => {
+                let text = as_string(val, &member_path)?;
+                if text != "reverb" {
+                    return Err(err("schema.const", member_path, "expected reverb"));
+                }
+            }
             "amount" => check_num_range(val, &member_path, 0.0, 1.0)?,
             "tail_ms" => check_int_range(val, &member_path, 1.0, MAX_SAFE_INTEGER_MS)?,
             "soften_hz" => check_num_range(val, &member_path, 200.0, 12_000.0)?,
+            _ => {}
+        }
+    }
+    Ok(())
+}
+
+fn validate_echo(obj: &Map<String, Value>, path: &str) -> PiccleResult<()> {
+    check_object(
+        obj,
+        path,
+        &["type", "delay_ms", "feedback", "wet_gain", "damp_hz"],
+        &["type", "delay_ms", "feedback", "wet_gain", "damp_hz"],
+    )?;
+    for (key, val) in obj {
+        let member_path = format!("{path}.{key}");
+        match key.as_str() {
+            "type" => {
+                let text = as_string(val, &member_path)?;
+                if text != "echo" {
+                    return Err(err("schema.const", member_path, "expected echo"));
+                }
+            }
+            "delay_ms" => check_int_range(val, &member_path, 1.0, MAX_SAFE_INTEGER_MS)?,
+            "feedback" => {
+                check_num_range(val, &member_path, 0.0, 1.0)?;
+                check_num_exclusive_max(val, &member_path, 1.0)?;
+            }
+            "wet_gain" => check_num_range(val, &member_path, 0.0, 1.0)?,
+            "damp_hz" => check_num_range(val, &member_path, 200.0, 12_000.0)?,
             _ => {}
         }
     }

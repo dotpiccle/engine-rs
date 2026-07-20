@@ -12,6 +12,7 @@
 
 mod denormal;
 
+pub mod echo;
 pub mod filter;
 pub mod measure;
 pub mod noise;

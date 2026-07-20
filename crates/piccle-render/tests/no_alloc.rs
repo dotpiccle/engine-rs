@@ -6,7 +6,8 @@
 use alloc_counter::{AllocCounterSystem, count_alloc};
 use piccle_core::curve::Curve;
 use piccle_core::model::{
-    ContourEntry, Document, Filter, Layer, Source, ToneSource, VolumeContour, Waveform,
+    ContourEntry, Document, Echo, Filter, Layer, Reverb, Source, SpatialEffect, ToneSource,
+    VolumeContour, Waveform,
 };
 use piccle_render::plan::RenderPlan;
 use piccle_render::renderer::Renderer;
@@ -15,8 +16,8 @@ use piccle_render::renderer::Renderer;
 static ALLOCATOR: AllocCounterSystem = AllocCounterSystem;
 
 fn stress_document() -> Document {
-    // Multiple layers, a moving pitch contour, serial filters, and reverb:
-    // the worst-case per-frame workload.
+    // Multiple layers, a moving pitch contour, serial filters, and parallel
+    // reverb/echo: representative simultaneous render-path machinery.
     let layer = |id: &str, seed_offset: i32| Layer {
         id: id.to_string(),
         start_ms: 0,
@@ -65,7 +66,15 @@ fn stress_document() -> Document {
         description: None,
         duration_ms: 100,
         master_volume_level: 1.0,
-        reverb: Some(piccle_core::model::Reverb { amount: 0.3, tail_ms: 220, soften_hz: 4_000.0 }),
+        spatial_effects: vec![
+            SpatialEffect::Reverb(Reverb { amount: 0.3, tail_ms: 220, soften_hz: 4_000.0 }),
+            SpatialEffect::Echo(Echo {
+                delay_ms: 90,
+                feedback: 0.3,
+                wet_gain: 0.2,
+                damp_hz: 4_000.0,
+            }),
+        ],
         layers: vec![layer("a", 0), layer("b", 12), layer("c", -7)],
     }
 }
@@ -151,7 +160,11 @@ fn render_into_allocates_nothing_at_max_voices_and_filters() {
         description: None,
         duration_ms: 10,
         master_volume_level: 1.0,
-        reverb: Some(piccle_core::model::Reverb { amount: 0.5, tail_ms: 1, soften_hz: 12_000.0 }),
+        spatial_effects: vec![SpatialEffect::Reverb(Reverb {
+            amount: 0.5,
+            tail_ms: 1,
+            soften_hz: 12_000.0,
+        })],
         layers,
     };
     let plan = RenderPlan::compile_validated(&document, 48_000);
@@ -175,7 +188,11 @@ fn render_into_allocates_nothing_at_max_tail() {
         description: None,
         duration_ms: 10,
         master_volume_level: 1.0,
-        reverb: Some(piccle_core::model::Reverb { amount: 0.5, tail_ms: 500, soften_hz: 4_000.0 }),
+        spatial_effects: vec![SpatialEffect::Reverb(Reverb {
+            amount: 0.5,
+            tail_ms: 500,
+            soften_hz: 4_000.0,
+        })],
         layers: vec![Layer {
             id: "a".to_string(),
             start_ms: 0,

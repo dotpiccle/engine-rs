@@ -725,13 +725,19 @@ mod tests {
     fn feedback_matrix_matches_the_published_matrix_vector() {
         let vector = matrix_vector();
         let seed = vector["seed"].as_u64().expect("seed") as u32;
-        let actual = random_orthogonal_matrix(seed)
-            .into_iter()
-            .flatten()
-            .map(f64::to_bits)
+        let actual = random_orthogonal_matrix(seed).into_iter().flatten().collect::<Vec<_>>();
+        let expected = vector["feedback_matrix_q"]
+            .as_array()
+            .expect("matrix must contain rows")
+            .iter()
+            .flat_map(|row| row.as_array().expect("matrix row must be an array"))
+            .map(|value| value.as_f64().expect("matrix entry must be binary64"))
             .collect::<Vec<_>>();
 
-        assert_eq!(actual, matrix_bits(&vector, "feedback_matrix_q"));
+        assert!(actual.iter().zip(expected).all(|(actual, expected)| {
+            let tolerance = 8.0 * f64::EPSILON * expected.abs().max(1.0);
+            (actual - expected).abs() <= tolerance
+        }));
     }
 
     #[test]

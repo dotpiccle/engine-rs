@@ -11,13 +11,15 @@ Document {
     ),
     duration_ms: 380,
     master_volume_level: 1.0,
-    reverb: Some(
-        Reverb {
-            amount: 0.2,
-            tail_ms: 300,
-            soften_hz: 4500.0,
-        },
-    ),
+    spatial_effects: [
+        Reverb(
+            Reverb {
+                amount: 0.2,
+                tail_ms: 300,
+                soften_hz: 4500.0,
+            },
+        ),
+    ],
     layers: [
         Layer {
             id: "tick",

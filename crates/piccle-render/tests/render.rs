@@ -2,7 +2,8 @@
 
 use piccle_core::curve::Curve;
 use piccle_core::model::{
-    ContourEntry, Document, Layer, NoiseSource, Source, ToneSource, VolumeContour, Waveform,
+    ContourEntry, Document, Echo, Layer, NoiseSource, Reverb, Source, SpatialEffect, ToneSource,
+    VolumeContour, Waveform,
 };
 use piccle_core::schedule::CANONICAL_SAMPLE_RATE;
 use piccle_render::plan::{RenderPlan, SourcePlan};
@@ -36,7 +37,7 @@ fn document(duration_ms: u64, layers: Vec<Layer>) -> Document {
         description: None,
         duration_ms,
         master_volume_level: 1.0,
-        reverb: None,
+        spatial_effects: Vec::new(),
         layers,
     }
 }
@@ -213,20 +214,27 @@ fn plan_active_interval_is_truncated_by_root_duration() {
 #[test]
 fn plan_output_extends_by_reverb_tail() {
     let mut doc = document(4, vec![tone_layer("a", 0, 4, Waveform::Sine, 1000.0)]);
-    doc.reverb = Some(piccle_core::model::Reverb { amount: 0.25, tail_ms: 4, soften_hz: 4000.0 });
+    doc.spatial_effects.push(SpatialEffect::Reverb(Reverb {
+        amount: 0.25,
+        tail_ms: 4,
+        soften_hz: 4000.0,
+    }));
     let plan = RenderPlan::compile_validated(&doc, 44_100);
-    // frame(4 ms) = 176, frame(8 ms) = 353 at 44.1 kHz.
-    assert_eq!(plan.output_frames(), 353);
+    // dry frame(4 ms) + reverb tail frame(4 ms) = 176 + 176 at 44.1 kHz.
+    assert_eq!(plan.output_frames(), 352);
 }
 
 #[test]
-fn plan_reverb_tail_frames_come_from_absolute_boundaries() {
+fn plan_reverb_tail_frames_come_from_declared_tail() {
     let mut doc = document(4, vec![tone_layer("a", 0, 4, Waveform::Sine, 1000.0)]);
-    doc.reverb = Some(piccle_core::model::Reverb { amount: 0.25, tail_ms: 4, soften_hz: 4000.0 });
+    doc.spatial_effects.push(SpatialEffect::Reverb(Reverb {
+        amount: 0.25,
+        tail_ms: 4,
+        soften_hz: 4000.0,
+    }));
     let plan = RenderPlan::compile_validated(&doc, 44_100);
     let reverb = plan.reverb().expect("reverb");
-    // N = 353 - 176 = 177, not frame(4 ms) = 176.
-    assert_eq!(reverb.tail_frames(), 177);
+    assert_eq!(reverb.tail_frames(), 176);
 }
 
 #[test]
@@ -284,7 +292,11 @@ fn render_to_vec_rejects_output_above_the_convenience_allocation_limit() {
 #[test]
 fn renderer_amount_zero_reverb_still_extends_timeline() {
     let mut doc = document(4, vec![tone_layer("a", 0, 4, Waveform::Sine, 1000.0)]);
-    doc.reverb = Some(piccle_core::model::Reverb { amount: 0.0, tail_ms: 10, soften_hz: 4000.0 });
+    doc.spatial_effects.push(SpatialEffect::Reverb(Reverb {
+        amount: 0.0,
+        tail_ms: 10,
+        soften_hz: 4000.0,
+    }));
     let plan = RenderPlan::compile_validated(&doc, RATE);
     let output = Renderer::render_to_vec(&plan).expect("render");
     assert_eq!(output.len(), 2 * 672);
@@ -293,7 +305,11 @@ fn renderer_amount_zero_reverb_still_extends_timeline() {
 #[test]
 fn renderer_amount_zero_reverb_tail_is_silent_after_dry_end() {
     let mut doc = document(4, vec![tone_layer("a", 0, 4, Waveform::Sine, 1000.0)]);
-    doc.reverb = Some(piccle_core::model::Reverb { amount: 0.0, tail_ms: 10, soften_hz: 4000.0 });
+    doc.spatial_effects.push(SpatialEffect::Reverb(Reverb {
+        amount: 0.0,
+        tail_ms: 10,
+        soften_hz: 4000.0,
+    }));
     let plan = RenderPlan::compile_validated(&doc, RATE);
     let output = Renderer::render_to_vec(&plan).expect("render");
     // Dry ends at frame 192; tail frames must be exactly zero at amount 0.
@@ -303,10 +319,49 @@ fn renderer_amount_zero_reverb_tail_is_silent_after_dry_end() {
 #[test]
 fn amount_zero_reverb_skips_wet_processing_configuration() {
     let mut doc = document(4, vec![tone_layer("a", 0, 4, Waveform::Sine, 1000.0)]);
-    doc.reverb =
-        Some(piccle_core::model::Reverb { amount: 0.0, tail_ms: 60_000, soften_hz: 4000.0 });
+    doc.spatial_effects.push(SpatialEffect::Reverb(Reverb {
+        amount: 0.0,
+        tail_ms: 60_000,
+        soften_hz: 4000.0,
+    }));
     let plan = RenderPlan::compile_validated(&doc, RATE);
     assert!(plan.reverb().is_some_and(|reverb| reverb.config().is_none()));
+}
+
+#[test]
+fn plan_output_extends_by_longest_spatial_effect_tail() {
+    let mut doc = document(4, vec![tone_layer("a", 0, 4, Waveform::Sine, 1000.0)]);
+    doc.spatial_effects.push(SpatialEffect::Reverb(Reverb {
+        amount: 0.0,
+        tail_ms: 4,
+        soften_hz: 4000.0,
+    }));
+    doc.spatial_effects.push(SpatialEffect::Echo(Echo {
+        delay_ms: 5,
+        feedback: 0.0,
+        wet_gain: 0.0,
+        damp_hz: 4000.0,
+    }));
+    let plan = RenderPlan::compile_validated(&doc, RATE);
+    assert_eq!(plan.output_frames(), 432);
+}
+
+#[test]
+fn parallel_spatial_effect_output_is_independent_of_array_order() {
+    let mut forward = document(100, vec![tone_layer("tone", 0, 100, Waveform::Sine, 880.0)]);
+    let reverb = SpatialEffect::Reverb(Reverb { amount: 0.2, tail_ms: 100, soften_hz: 4_000.0 });
+    let echo =
+        SpatialEffect::Echo(Echo { delay_ms: 80, feedback: 0.3, wet_gain: 0.15, damp_hz: 4_000.0 });
+    forward.spatial_effects = vec![reverb, echo];
+    let mut reverse = forward.clone();
+    reverse.spatial_effects = vec![echo, reverb];
+
+    let forward_output = Renderer::render_to_vec(&RenderPlan::compile_validated(&forward, RATE))
+        .expect("render forward order");
+    let reverse_output = Renderer::render_to_vec(&RenderPlan::compile_validated(&reverse, RATE))
+        .expect("render reverse order");
+
+    assert_eq!(forward_output, reverse_output);
 }
 
 #[test]

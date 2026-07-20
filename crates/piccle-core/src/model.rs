@@ -165,15 +165,37 @@ pub struct Layer {
     pub filters: Vec<Filter>,
 }
 
-/// Whole-document reverb applied after the layer mix.
+/// Whole-document spatial reverb effect applied after the layer mix.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Reverb {
-    /// Wet mix amount 0..=1.
+    /// Additive wet gain 0..=1.
     pub amount: f64,
     /// RT60 target and emitted wet-tail duration in milliseconds.
     pub tail_ms: u64,
     /// Wet-path lowpass corner in Hz (clamped to render bandwidth).
     pub soften_hz: f64,
+}
+
+/// Whole-document echo effect applied after the layer mix.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Echo {
+    /// Delay between repeats in milliseconds.
+    pub delay_ms: u64,
+    /// Feedback gain 0..1, strictly less than 1.
+    pub feedback: f64,
+    /// Additive wet gain 0..=1.
+    pub wet_gain: f64,
+    /// Feedback-path lowpass corner in Hz (clamped to render bandwidth).
+    pub damp_hz: f64,
+}
+
+/// Whole-document spatial effect.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum SpatialEffect {
+    /// Diffuse room tail.
+    Reverb(Reverb),
+    /// Discrete progressively damped repeats.
+    Echo(Echo),
 }
 
 /// Fully resolved Piccle document.
@@ -188,8 +210,8 @@ pub struct Document {
     pub duration_ms: u64,
     /// Final master gain 0..=1 (default 1).
     pub master_volume_level: f64,
-    /// Optional whole-document reverb.
-    pub reverb: Option<Reverb>,
+    /// Whole-document spatial effects in declaration order.
+    pub spatial_effects: Vec<SpatialEffect>,
     /// Layers in canonical array order (mix order).
     pub layers: Vec<Layer>,
 }

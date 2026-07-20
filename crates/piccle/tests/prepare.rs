@@ -59,7 +59,7 @@ fn too_many_filters_in_one_layer_is_unsupported() {
 #[test]
 fn reverb_tail_above_the_engine_limit_is_unsupported() {
     let bytes = minimal_document(
-        r#","reverb":{"amount":0.2,"tail_ms":60001,"soften_hz":4000}"#,
+        r#","spatial_effects":[{"type":"reverb","amount":0.2,"tail_ms":60001,"soften_hz":4000}]"#,
         &tone_layer("a", 10, ""),
     );
     let error = piccle::prepare(&bytes).expect_err("must fail");
@@ -69,7 +69,7 @@ fn reverb_tail_above_the_engine_limit_is_unsupported() {
 #[test]
 fn high_rate_reverb_above_the_preparation_frame_budget_is_unsupported() {
     let bytes = minimal_document(
-        r#","reverb":{"amount":0.2,"tail_ms":15001,"soften_hz":4000}"#,
+        r#","spatial_effects":[{"type":"reverb","amount":0.2,"tail_ms":15001,"soften_hz":4000}]"#,
         &tone_layer("a", 10, ""),
     );
     let error = piccle::prepare_with_rate(&bytes, 192_000).expect_err("must fail");
@@ -79,10 +79,30 @@ fn high_rate_reverb_above_the_preparation_frame_budget_is_unsupported() {
 #[test]
 fn zero_amount_reverb_does_not_consume_the_wet_preparation_budget() {
     let bytes = minimal_document(
-        r#","reverb":{"amount":0,"tail_ms":60000,"soften_hz":4000}"#,
+        r#","spatial_effects":[{"type":"reverb","amount":0,"tail_ms":60000,"soften_hz":4000}]"#,
         &tone_layer("a", 10, ""),
     );
     assert!(piccle::prepare_with_rate(&bytes, 192_000).is_ok());
+}
+
+#[test]
+fn echo_delay_above_the_engine_limit_is_unsupported() {
+    let bytes = minimal_document(
+        r#","spatial_effects":[{"type":"echo","delay_ms":2001,"feedback":0,"wet_gain":0.3,"damp_hz":4000}]"#,
+        &tone_layer("a", 10, ""),
+    );
+    let error = piccle::prepare(&bytes).expect_err("must fail");
+    assert!(matches!(error, PiccleError::Unsupported { limit: "max_echo_delay_ms", .. }));
+}
+
+#[test]
+fn echo_effective_tail_above_the_engine_limit_is_unsupported() {
+    let bytes = minimal_document(
+        r#","spatial_effects":[{"type":"echo","delay_ms":1000,"feedback":0.99,"wet_gain":0.3,"damp_hz":4000}]"#,
+        &tone_layer("a", 10, ""),
+    );
+    let error = piccle::prepare(&bytes).expect_err("must fail");
+    assert!(matches!(error, PiccleError::Unsupported { limit: "max_tail_ms", .. }));
 }
 
 #[test]

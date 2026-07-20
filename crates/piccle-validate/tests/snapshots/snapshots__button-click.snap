@@ -11,7 +11,7 @@ Document {
     ),
     duration_ms: 80,
     master_volume_level: 1.0,
-    reverb: None,
+    spatial_effects: [],
     layers: [
         Layer {
             id: "click",

@@ -11,13 +11,15 @@ Document {
     ),
     duration_ms: 600,
     master_volume_level: 1.0,
-    reverb: Some(
-        Reverb {
-            amount: 0.3,
-            tail_ms: 400,
-            soften_hz: 4000.0,
-        },
-    ),
+    spatial_effects: [
+        Reverb(
+            Reverb {
+                amount: 0.3,
+                tail_ms: 400,
+                soften_hz: 4000.0,
+            },
+        ),
+    ],
     layers: [
         Layer {
             id: "tone-a",

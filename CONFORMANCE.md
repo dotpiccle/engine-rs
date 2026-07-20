@@ -6,7 +6,7 @@ revision is the commit containing this file.
 ## Specification under test
 
 - Repository: `https://github.com/dotpiccle/spec`
-- Pinned commit: `465fd48683e2db98926f5af55043244c2d79f085`
+- Pinned commit: `e49c5edff3c102ed665fc8e7eb011a1d98eafbc2`
 - Audit date: 2026-07-20
 - Canonical profile: 48 kHz, stereo, binary64 DSP, interleaved binary32 output after clipping
 
@@ -19,17 +19,18 @@ The audited worktree produced the following results:
 
 | Gate                            | Evidence                                                                                                                                                                                             |
 | ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Specification repository        | `scripts/validate.py` passed 51 accepted and 54 rejected documents plus numeric, documentation, inventory, canonical-JSON, anchor, and link checks                                                   |
-| Valid documents                 | Every one of the 37 files currently in `test-vectors/valid/` accepted before engine limits                                                                                                           |
-| Invalid documents               | All 54 fixtures matched their exact stage, code, and JSON path                                                                                                                                       |
+| Specification repository        | `scripts/validate.py` passed 55 accepted and 64 rejected documents plus numeric, documentation, inventory, canonical-JSON, anchor, and link checks                                                   |
+| Valid documents                 | Every one of the 40 files currently in `test-vectors/valid/` accepted before engine limits                                                                                                           |
+| Invalid documents               | All 64 fixtures matched their exact stage, code, and JSON path                                                                                                                                       |
 | Numeric and schedule references | PCG32, curves, balance, filters, frame boundaries, FDN construction, and behavior schedules passed                                                                                                   |
 | Oscillators                     | All four waveforms passed the normative 48,000-frame DFT checks at 375, 1,000, 3,000, 8,000, and 16,000 Hz                                                                                           |
 | Reverb                          | All seven perceptual metrics passed for 5 canonical IRs, 10 qualification cases, and 40 additional-profile cases spanning 8–192 kHz; canonical IRs were additionally bit-identical on the audit host |
-| Matrix construction             | The noncanonical 37 ms / 8 kHz-soften matrix seed, PCG32 stream, source matrix, and feedback matrix matched the published vector                                                                     |
-| Official examples               | All 14 examples prepared and rendered with exact frame counts and finite output                                                                                                                      |
+| Echo and parallel effects       | All canonical echo schedule/checkpoint tolerances passed; reversed reverb/echo fixture orders produced identical PCM and output length                                                               |
+| Matrix construction             | The noncanonical 37 ms / 8 kHz-soften matrix seed, PCG32 stream, source matrix, and feedback matrix matched the published exact-or-tolerant contract                                                 |
+| Official examples               | All 15 examples prepared and rendered with exact frame counts and finite output                                                                                                                      |
 | Render safety                   | Determinism, clipping, finite output, bounded streaming, and zero allocation/reallocation/deallocation in the render loop passed                                                                     |
-| Workspace tests                 | 207 tests passed; one explicit long-running release-ceiling test remained ignored by default                                                                                                         |
-| Static quality                  | Rustfmt, dprint, typos, strict Clippy, every feature power set, Rust 1.85 MSRV, rustdoc, and doctests passed                                                                                         |
+| Workspace tests                 | 217 tests passed; one explicit long-running release-ceiling test remained ignored by default                                                                                                         |
+| Static quality                  | Rustfmt, dprint, typos, strict Clippy, every feature power set, Rust 1.85 MSRV, rustdoc, and doctests passed; library line coverage measured 95.19%                                                  |
 | Targets                         | Linux x86-64/aarch64/armv7, Android aarch64/armv7, macOS, Windows, WASM, and iOS targets are represented in policy; available cross-target checks passed                                             |
 | Android linkage                 | The API-21 `armeabi-v7a` device probe linked as a 32-bit ARM EABI5 PIE executable                                                                                                                    |
 | Secondary Android probe         | The ARMv7/API-21 probe completed on a Galaxy S20 FE: official examples sustained 79.197–294.702× real time at 8.2–8.5 MiB RSS; the maximum accepted workload was offline-only at 0.536×              |
@@ -37,7 +38,7 @@ The audited worktree produced the following results:
 | Fuzzing                         | The parser completed more than 7.9 million seeded libFuzzer executions without a crash during this audit                                                                                             |
 | Packaging                       | Every published crate archive contains its license and README, excludes submodule-dependent integration tests, and includes required runtime test data                                               |
 
-The conformance runner reported 627 successful automated checks. Repository tests supplement that
+The conformance runner reported 659 successful automated checks. Repository tests supplement that
 runner with public-boundary, property, allocation, packaging, and regression coverage.
 
 ## Engine profile and capacity contract
@@ -52,7 +53,9 @@ Engine-specific limits are applied only after format validation and are returned
 - 600,000 ms document duration;
 - 128 layers and 16 filters per layer;
 - 1,024 entries per contour;
+- 16 parallel spatial effects;
 - 60,000 ms declared reverb tail;
+- 2,000 ms echo delay and 60,000 ms effective echo tail;
 - 2,880,000 prepared tail frames for a nonzero wet path;
 - 8,000 through 192,000 Hz render rates; and
 - 64 MiB for the optional one-shot `render_to_vec` allocation.

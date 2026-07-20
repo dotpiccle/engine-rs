@@ -7,7 +7,8 @@ of the Piccle micro-audio format at https://github.com/dotpiccle/spec.
 
 Piccle is a declarative format for short, one-shot procedural UI sounds: button presses, toggles,
 confirmations, errors, notifications, and navigation transitions. A Piccle asset contains structured
-synthesis instructions (tones, deterministic noise, filters, reverb) rather than recorded audio.
+synthesis instructions (tones, deterministic noise, filters, reverb, echo) rather than recorded
+audio.
 
 This engine parses Piccle documents, validates them, and renders audio according to the normative
 specification. It must be:
@@ -18,8 +19,8 @@ specification. It must be:
 - **Deterministic.** Same document + same render profile = same output (within the spec's
   determinism classes).
 - **Extremely performant.** The render path MUST NOT allocate memory, parse JSON, walk schemas, sort
-  events, or construct tables. Steady render cost scales with active voices; reverb is constant work
-  per frame.
+  events, or construct tables. Steady render cost scales with active voices; spatial-effect work is
+  constant per active effect and frame.
 - **Portable.** No platform-specific concepts in the core library. Platform audio I/O is an
   integration concern. The engine targets application processors across Linux (x86_64, aarch64,
   armv7), macOS, Windows, WASM, Android, and iOS — see `deny.toml` `[graph] targets` for the
@@ -55,7 +56,7 @@ engine-rs/
 │   ├── piccle/                       umbrella library; re-exports public API
 │   ├── piccle-core/                  document model, errors, curve primitives
 │   ├── piccle-validate/              JSON parse + schema + semantic validation
-│   ├── piccle-dsp/                   PCG32, oscillators, biquads, FDN reverb
+│   ├── piccle-dsp/                   PCG32, oscillators, biquads, FDN reverb, echo
 │   ├── piccle-render/                boundary schedule + production render loop
 │   ├── piccle-fuzz/                  cargo-fuzz targets
 │   └── xtask/                        automation: setup, conformance, sync-spec, bench
@@ -119,14 +120,15 @@ cannot be constructed without validation. The render path cannot fail validation
 
 ### 5.4 DSP matches normative formulas exactly
 
-The spec publishes exact formulas for PCG32, character filters, biquads, FDN reverb, oscillator
-harmonic targets, and curve functions. Implement them verbatim except where the spec explicitly
-permits a numerically qualified equivalent. Production oscillators use bounded-cost band-limited
-tables and MUST pass every published harmonic, phase, DC, and alias tolerance. Do not substitute
-`rand_pcg` for the spec's exact PCG32 init sequence. The normative eight-line FDN is the only
-conforming v1 reverb topology; do not substitute convolution or another network. A low-level
-oscillator that has not yet received a frequency emits silence; public DSP primitives must not panic
-on an unconfigured zero state.
+The spec publishes exact formulas for PCG32, character filters, biquads, FDN reverb, feedback echo,
+oscillator harmonic targets, and curve functions. Implement them verbatim except where the spec
+explicitly permits a numerically qualified equivalent. Production oscillators use bounded-cost
+band-limited tables and MUST pass every published harmonic, phase, DC, and alias tolerance. Do not
+substitute `rand_pcg` for the spec's exact PCG32 init sequence. The normative eight-line FDN is the
+only conforming v1 reverb topology; do not substitute convolution or another network. Echo uses the
+normative independent per-channel delay lines and feedback-path lowpass. A low-level oscillator that
+has not yet received a frequency emits silence; public DSP primitives must not panic on an
+unconfigured zero state.
 
 ### 5.5 Portability across target platforms
 
@@ -273,6 +275,9 @@ Per spec `docs/03-sources.md`, test every oscillator at canonical measurement fr
 - **Constant reverb work** — the uncapped FDN's retained delay state scales with `tail_ms`, while
   its dense eight-line feedback matrix keeps per-frame arithmetic constant. Bench `tail_ms` ∈ {1,
   10, 20, 220, 500} — per-frame cost must be flat
+- **Constant echo work** — delay-line state scales with `delay_ms`, while per-frame arithmetic stays
+  constant. Bench representative delay lengths, including the engine maximum, to catch cache-driven
+  regressions
 - **No cost spike at contour boundaries** — contour cursors advance forward, no array searching
 - **Benchmarks** — `criterion` with statistical regression detection; profile with `samply` or
   `cargo flamegraph` on release builds. Canonical benches live in
@@ -318,12 +323,13 @@ input (6-step pre-render pipeline). Validation produces a `RenderPlan`. The rend
 
 Published engine limits (checked after validation, reported as `Unsupported`; public constants in
 the `piccle` crate): `MAX_DURATION_MS = 600_000`, `MAX_LAYERS = 128`, `MAX_FILTERS_PER_LAYER = 16`,
-`MAX_CONTOUR_ENTRIES = 1024`, `MAX_TAIL_MS = 60_000`, `MIN_SAMPLE_RATE = 8_000`,
-`MAX_SAMPLE_RATE = 192_000`, and `MAX_REVERB_TAIL_FRAMES = 2_880_000` for a nonzero wet path. The
-combined tail-frame limit preserves a 60-second canonical tail without allowing high-rate profiles
-to multiply reverb calibration memory and CPU cost. `Renderer::render_to_vec` has a separate 64 MiB
-convenience-allocation ceiling; longer prepared assets remain streamable with `render_into`. Parser
-limits (reported as `ResourceRejected`): 1 MiB input cap, 64 levels of nesting.
+`MAX_CONTOUR_ENTRIES = 1024`, `MAX_SPATIAL_EFFECTS = 16`, `MAX_TAIL_MS = 60_000`,
+`MAX_ECHO_DELAY_MS = 2_000`, `MIN_SAMPLE_RATE = 8_000`, `MAX_SAMPLE_RATE = 192_000`, and
+`MAX_REVERB_TAIL_FRAMES = 2_880_000` for a nonzero wet path. The combined tail-frame limit preserves
+a 60-second canonical tail without allowing high-rate profiles to multiply reverb calibration memory
+and CPU cost. `Renderer::render_to_vec` has a separate 64 MiB convenience-allocation ceiling; longer
+prepared assets remain streamable with `render_into`. Parser limits (reported as
+`ResourceRejected`): 1 MiB input cap, 64 levels of nesting.
 
 ### 10.5 Denormal protection
 
@@ -380,9 +386,10 @@ controls as especially sensitive.
 ## 13. Language & naming
 
 - Product: **Piccle**. Use the brand name in human-facing docs.
-- Domain language: use spec terms verbatim (document, layer, source, tone, noise, filter, reverb,
-  balance, volume, contour, frame, boundary, pitch, frequency, character, seed, offset_cents,
-  master_volume_level, soften_hz, tail_ms).
+- Domain language: use spec terms verbatim (document, layer, source, tone, noise, filter,
+  spatial_effects, reverb, echo, balance, volume, contour, frame, boundary, pitch, frequency,
+  character, seed, offset_cents, master_volume_level, soften_hz, tail_ms, delay_ms, feedback,
+  wet_gain, damp_hz).
 - Rust naming: `UpperCamelCase` for types/traits/enums, `snake_case` for
   functions/methods/variables/modules, `SCREAMING_SNAKE_CASE` for constants.
 - Error code strings match `piccle-spec/test-vectors/invalid-expectations.json` exactly, including

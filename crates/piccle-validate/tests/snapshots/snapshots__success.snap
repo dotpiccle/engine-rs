@@ -11,13 +11,15 @@ Document {
     ),
     duration_ms: 420,
     master_volume_level: 1.0,
-    reverb: Some(
-        Reverb {
-            amount: 0.2,
-            tail_ms: 250,
-            soften_hz: 5000.0,
-        },
-    ),
+    spatial_effects: [
+        Reverb(
+            Reverb {
+                amount: 0.2,
+                tail_ms: 250,
+                soften_hz: 5000.0,
+            },
+        ),
+    ],
     layers: [
         Layer {
             id: "note1",

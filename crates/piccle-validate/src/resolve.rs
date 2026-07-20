@@ -7,8 +7,8 @@
 use piccle_core::curve::Curve;
 use piccle_core::error::{PiccleError, PiccleResult};
 use piccle_core::model::{
-    ContourEntry, Document, FadeStage, Filter, FilterType, Layer, NoiseCharacter, NoiseSource,
-    Reverb, Source, ToneSource, VolumeContour, Waveform,
+    ContourEntry, Document, Echo, FadeStage, Filter, FilterType, Layer, NoiseCharacter,
+    NoiseSource, Reverb, Source, SpatialEffect, ToneSource, VolumeContour, Waveform,
 };
 use serde_json::{Map, Value};
 
@@ -112,25 +112,37 @@ pub fn resolve_document(value: &Value) -> PiccleResult<Document> {
 
     let master_volume_level = number_field(root, "master_volume_level", 1.0)?;
 
-    let reverb = match root.get("reverb") {
-        Some(v) => Some(resolve_reverb(v)?),
-        None => None,
-    };
+    let spatial_values = root.get("spatial_effects").and_then(Value::as_array);
+    let mut spatial_effects = Vec::with_capacity(spatial_values.map_or(0, Vec::len));
+    if let Some(spatial_values) = spatial_values {
+        for effect_value in spatial_values {
+            spatial_effects.push(resolve_spatial_effect(effect_value)?);
+        }
+    }
 
-    Ok(Document { name, description, duration_ms, master_volume_level, reverb, layers })
+    Ok(Document { name, description, duration_ms, master_volume_level, spatial_effects, layers })
 }
 
 fn string_field_root<'a>(value: &'a Value, what: &str) -> PiccleResult<&'a str> {
     value.as_str().ok_or_else(|| internal(what))
 }
 
-fn resolve_reverb(value: &Value) -> PiccleResult<Reverb> {
-    let obj = value.as_object().ok_or_else(|| internal("reverb not object"))?;
-    Ok(Reverb {
-        amount: number_field(obj, "amount", 0.0)?,
-        tail_ms: integer_field(obj, "tail_ms", 0)?,
-        soften_hz: number_field(obj, "soften_hz", 0.0)?,
-    })
+fn resolve_spatial_effect(value: &Value) -> PiccleResult<SpatialEffect> {
+    let obj = value.as_object().ok_or_else(|| internal("spatial effect not object"))?;
+    match string_field(obj, "type")? {
+        "reverb" => Ok(SpatialEffect::Reverb(Reverb {
+            amount: number_field(obj, "amount", 0.0)?,
+            tail_ms: integer_field(obj, "tail_ms", 0)?,
+            soften_hz: number_field(obj, "soften_hz", 0.0)?,
+        })),
+        "echo" => Ok(SpatialEffect::Echo(Echo {
+            delay_ms: integer_field(obj, "delay_ms", 0)?,
+            feedback: number_field(obj, "feedback", 0.0)?,
+            wet_gain: number_field(obj, "wet_gain", 0.0)?,
+            damp_hz: number_field(obj, "damp_hz", 0.0)?,
+        })),
+        _ => Err(internal("unknown spatial effect type")),
+    }
 }
 
 fn resolve_layer(value: &Value) -> PiccleResult<Layer> {

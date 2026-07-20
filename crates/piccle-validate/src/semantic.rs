@@ -8,6 +8,7 @@
 use std::collections::HashSet;
 
 use piccle_core::error::{PiccleError, PiccleResult};
+use piccle_core::schedule::echo_repeat_count;
 use serde_json::Value;
 
 /// Largest permitted timestamp (2^53 − 1).
@@ -143,12 +144,50 @@ pub fn validate_semantics(value: &Value) -> PiccleResult<()> {
         None => max_layer_end_ms,
     };
 
-    if let Some(reverb) = root.get("reverb").and_then(Value::as_object) {
-        let tail_ms = int_ms(reverb, "tail_ms", 0)?;
-        if u128::from(document_duration_ms) + u128::from(tail_ms) > MAX_SAFE_INTEGER_MS {
+    if let Some(spatial_effects) = root.get("spatial_effects").and_then(Value::as_array) {
+        let mut max_tail_ms = 0_u128;
+        let mut max_tail_path = None;
+        for (index, effect) in spatial_effects.iter().enumerate() {
+            let effect_obj =
+                effect.as_object().ok_or_else(|| internal("spatial effect not object"))?;
+            let effect_type = effect_obj
+                .get("type")
+                .and_then(Value::as_str)
+                .ok_or_else(|| internal("spatial effect type missing"))?;
+            let (tail_ms, path) = match effect_type {
+                "reverb" => (
+                    u128::from(int_ms(effect_obj, "tail_ms", 0)?),
+                    format!("$.spatial_effects[{index}].tail_ms"),
+                ),
+                "echo" => {
+                    let feedback = effect_obj
+                        .get("feedback")
+                        .and_then(Value::as_f64)
+                        .ok_or_else(|| internal("echo feedback missing"))?;
+                    let Some(repeat_count) = echo_repeat_count(feedback)
+                    else {
+                        return Err(semantic_err(
+                            "semantic.echo_tail_unbounded",
+                            format!("$.spatial_effects[{index}].feedback"),
+                            "echo repeat count exceeds the bounded iteration cap",
+                        ));
+                    };
+                    (
+                        u128::from(int_ms(effect_obj, "delay_ms", 0)?) * u128::from(repeat_count),
+                        format!("$.spatial_effects[{index}].feedback"),
+                    )
+                }
+                _ => return Err(internal("unknown spatial effect type")),
+            };
+            if tail_ms > max_tail_ms {
+                max_tail_ms = tail_ms;
+                max_tail_path = Some(path);
+            }
+        }
+        if u128::from(document_duration_ms) + max_tail_ms > MAX_SAFE_INTEGER_MS {
             return Err(semantic_err(
                 "semantic.output_end_out_of_range",
-                "$.reverb.tail_ms".to_owned(),
+                max_tail_path.unwrap_or_else(|| "$.spatial_effects".to_owned()),
                 "document duration plus tail exceeds the safe-integer bound",
             ));
         }

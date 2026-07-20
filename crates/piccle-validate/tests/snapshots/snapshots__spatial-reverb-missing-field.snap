@@ -2,4 +2,4 @@
 source: crates/piccle-validate/tests/snapshots.rs
 expression: "format!(\"{} {} {}\", error.stage(), error.code(), error.path())"
 ---
-semantic semantic.output_end_out_of_range $.spatial_effects[0].tail_ms
+schema schema.required $.spatial_effects[0].amount

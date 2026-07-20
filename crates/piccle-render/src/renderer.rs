@@ -7,12 +7,13 @@
 
 use piccle_core::error::PiccleError;
 use piccle_core::schedule::FREQUENCY_MIN_HZ;
+use piccle_dsp::echo::Echo;
 use piccle_dsp::filter::Biquad;
 use piccle_dsp::noise::NoiseVoice;
 use piccle_dsp::oscillator::Oscillator;
 use piccle_dsp::reverb::Reverb;
 
-use crate::plan::{RenderPlan, SourcePlan};
+use crate::plan::{RenderPlan, SourcePlan, SpatialEffectPlan};
 
 /// Maximum allocation made by [`Renderer::render_to_vec`] (64 MiB).
 ///
@@ -62,6 +63,12 @@ impl LayerVoice {
     }
 }
 
+#[derive(Debug)]
+enum SpatialEffectVoice {
+    Reverb(Option<Box<Reverb>>),
+    Echo(Option<Echo>),
+}
+
 /// Streaming renderer over an immutable [`RenderPlan`].
 ///
 /// The renderer owns all mutable voice state; the plan stays shared and
@@ -75,7 +82,7 @@ pub struct Renderer<'a> {
     next_start: usize,
     next_end: usize,
     next_boundary_frame: u64,
-    reverb: Option<Reverb>,
+    spatial_effects: Vec<SpatialEffectVoice>,
 }
 
 impl<'a> Renderer<'a> {
@@ -94,7 +101,18 @@ impl<'a> Renderer<'a> {
             .end_order()
             .first()
             .map_or(u64::MAX, |&index| plan.layers()[index].active_end_frame());
-        let reverb = plan.reverb().and_then(|plan| plan.config()).map(Reverb::new);
+        let spatial_effects = plan
+            .spatial_effects()
+            .iter()
+            .map(|effect| match effect {
+                SpatialEffectPlan::Reverb(reverb) => SpatialEffectVoice::Reverb(
+                    reverb.config().map(|config| Box::new(Reverb::new(config))),
+                ),
+                SpatialEffectPlan::Echo(echo) => {
+                    SpatialEffectVoice::Echo(echo.config().map(Echo::new))
+                }
+            })
+            .collect();
         Self {
             plan,
             frame_cursor: 0,
@@ -103,7 +121,7 @@ impl<'a> Renderer<'a> {
             next_start: 0,
             next_end: 0,
             next_boundary_frame: next_start_frame.min(next_end_frame),
-            reverb,
+            spatial_effects,
         }
     }
 
@@ -179,7 +197,7 @@ impl<'a> Renderer<'a> {
         while written < capacity && self.frame_cursor < self.plan.output_frames() {
             let frame = self.frame_cursor;
             let (dry_left, dry_right) = self.mix_layers(frame)?;
-            let (out_left, out_right) = self.apply_reverb(frame, dry_left, dry_right)?;
+            let (out_left, out_right) = self.apply_spatial_effects(frame, dry_left, dry_right)?;
             let master = self.plan.master_volume_level();
             let mastered_left = out_left * master;
             let mastered_right = out_right * master;
@@ -285,40 +303,70 @@ impl<'a> Renderer<'a> {
         self.next_boundary_frame = next_start_frame.min(next_end_frame);
     }
 
-    /// Reverb dry/wet crossfade plus the mandatory finite check.
-    fn apply_reverb(
+    /// Parallel additive spatial effects plus the dry mix.
+    fn apply_spatial_effects(
         &mut self,
         frame: u64,
         dry_left: f64,
         dry_right: f64,
     ) -> Result<(f64, f64), PiccleError> {
-        let Some(reverb_plan) = self.plan.reverb()
-        else {
-            return Ok((dry_left, dry_right));
-        };
-        // piccle-spec/docs/07-reverb.md: reverb presence defines the output
-        // timeline even at amount 0, but no wet work is required.
-        if reverb_plan.amount() == 0.0 {
-            return Ok((dry_left, dry_right));
+        let mut out_left = dry_left;
+        let mut out_right = dry_right;
+        for index in 0..self.plan.spatial_effects().len() {
+            let Some(effect_plan) = self.plan.spatial_effects().get(index)
+            else {
+                return Err(PiccleError::internal("render plan and spatial effect state disagree"));
+            };
+            let Some(effect_voice) = self.spatial_effects.get_mut(index)
+            else {
+                return Err(PiccleError::internal("render plan and spatial effect state disagree"));
+            };
+            let effect_end = self.plan.dry_end_frame() + effect_plan.tail_frames();
+            if frame >= effect_end {
+                continue;
+            }
+            let terminal_gain =
+                terminal_window_gain(frame, effect_end, effect_plan.window_frames());
+            match (effect_plan, effect_voice) {
+                (SpatialEffectPlan::Reverb(reverb_plan), SpatialEffectVoice::Reverb(reverb)) => {
+                    if reverb_plan.amount() == 0.0 {
+                        continue;
+                    }
+                    let Some(reverb) = reverb.as_mut()
+                    else {
+                        return Err(PiccleError::internal("render plan and reverb state disagree"));
+                    };
+                    let (wet_left, wet_right) = reverb.process(dry_left, dry_right, terminal_gain);
+                    out_left += reverb_plan.amount() * wet_left;
+                    out_right += reverb_plan.amount() * wet_right;
+                }
+                (SpatialEffectPlan::Echo(echo_plan), SpatialEffectVoice::Echo(echo)) => {
+                    if echo_plan.wet_gain() == 0.0 {
+                        continue;
+                    }
+                    let Some(echo) = echo.as_mut()
+                    else {
+                        return Err(PiccleError::internal("render plan and echo state disagree"));
+                    };
+                    let (wet_left, wet_right) = echo.process(dry_left, dry_right, terminal_gain);
+                    out_left += echo_plan.wet_gain() * wet_left;
+                    out_right += echo_plan.wet_gain() * wet_right;
+                }
+                _ => {
+                    return Err(PiccleError::internal(
+                        "render plan and spatial effect state disagree",
+                    ));
+                }
+            }
         }
-        let Some(reverb) = self.reverb.as_mut()
-        else {
-            return Err(PiccleError::internal("render plan and reverb state disagree"));
-        };
-        let terminal_gain =
-            terminal_window_gain(frame, self.plan.output_frames(), reverb_plan.window_frames());
-        let (wet_left, wet_right) = reverb.process(dry_left, dry_right, terminal_gain);
-        let amount = reverb_plan.amount();
-        let out_left = (1.0 - amount) * dry_left + amount * wet_left;
-        let out_right = (1.0 - amount) * dry_right + amount * wet_right;
         Ok((out_left, out_right))
     }
 }
 
 /// Automatic terminal-window gain at absolute `frame`.
 ///
-/// Spec: piccle-spec/docs/07-reverb.md — 1 before `T - W`, then a linear
-/// ramp reaching exactly 0 on the final emitted frame.
+/// Spec: piccle-spec/docs/07-spatial-effects.md — 1 before `T - W`, then a
+/// linear ramp reaching exactly 0 on the final emitted frame.
 #[must_use]
 pub fn terminal_window_gain(frame: u64, output_end: u64, window: u64) -> f64 {
     if window <= 1 {

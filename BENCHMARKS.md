@@ -11,7 +11,7 @@ cargo xtask device-bench
 This requires `cargo-ndk`, ADB, Android NDK API 21 support, and exactly one connected device. It
 builds an `armeabi-v7a` executable, pushes it to `/data/local/tmp`, and reports preparation time,
 renderer construction time, throughput, real-time factor, worst 128-frame callback latency and its
-ratio to average callback time, and process peak RSS. It profiles all 14 pinned official examples,
+ratio to average callback time, and process peak RSS. It profiles all 15 pinned official examples,
 the 20 Hz oscillator risk case, a moving-filter workload, and the published maximum workload. The
 header records the device serial, model, Android version, ABI, and total RAM so results retain their
 hardware context.
@@ -31,6 +31,7 @@ The Piccle spec mandates (`piccle-spec/docs/15-engine-build-guide.md` §9):
 - Simultaneous pitch-contour advancement for all 128 active voices, comparing the exact boundary
   frame with the immediately following steady frame
 - Reverb cost per frame at `tail_ms` ∈ {1, 10, 20, 220, 500}
+- Echo cost per frame at `delay_ms` ∈ {20, 90, 200, 2000}
 - Reverb preparation at `tail_ms` ∈ {1, 20, 220, 500}
 - Oscillator harmonic load, including the 20 Hz saw worst case
 - Maximum accepted steady workload: 128 voices × 16 filters plus reverb
@@ -51,6 +52,7 @@ Criterion medians on the local arm64 macOS audit host, rendering 4,096-frame chu
 | One 20 Hz saw (worst case)        | 102.7 Mframe/s       |
 | One 20 Hz square / triangle       | 101.6–102.4 Mframe/s |
 | Reverb, `tail_ms` 1 through 500   | 21.1–21.8 Mframe/s   |
+| Echo, `delay_ms` 20 through 2,000 | 88.0–89.6 Mframe/s   |
 | 128 simultaneous contour advances | 1.060 µs/frame       |
 | Same 128 voices, following frame  | 0.998 µs/frame       |
 | 128 voices × 16 filters + reverb  | 75.4 Kframe/s        |
@@ -96,14 +98,15 @@ the same 32-bit `armeabi-v7a` artifact intended for the minimum Android profile.
 | ------------------------------------------- | --------------- | ---------------- | ------------------------ | --------------- |
 | One 20 Hz saw                               | 58.727 ms       | 346.104×         | 6.885 µs                 | 8,144 KiB       |
 | Four voices and one moving filter           | 53.447 ms       | 36.933×          | 90.231 µs                | 8,424 KiB       |
-| Fourteen official examples (observed range) | 0.042–42.630 ms | 79.197–294.702×  | 10.500–73.538 µs         | 8,424–8,672 KiB |
+| Fourteen pre-echo examples (observed range) | 0.042–42.630 ms | 79.197–294.702×  | 10.500–73.538 µs         | 8,424–8,672 KiB |
 | 128 voices × 16 filters plus reverb         | 53.179 ms       | 0.536×           | 5,024.269 µs             | 9,084 KiB       |
 
 Every official example and the representative moving-filter workload rendered comfortably ahead of
 real time. The intentionally maximal accepted workload did not sustain live real time, confirming
 that the resource ceiling is an offline/ahead-of-playback acceptance limit. This modern phone is
 useful deployment-path evidence, but it does not satisfy the lowest-supported-device gate or justify
-a Galaxy J5 performance claim.
+a Galaxy J5 performance claim. This snapshot predates the echo example; rerun the 15-example probe
+before making Android echo-performance claims.
 
 ## Profiling
 

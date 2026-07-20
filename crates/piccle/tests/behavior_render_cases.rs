@@ -3,7 +3,7 @@
 
 use std::path::{Path, PathBuf};
 
-use piccle_render::plan::RenderPlan;
+use piccle_render::plan::{RenderPlan, SpatialEffectPlan};
 
 fn spec_dir() -> PathBuf {
     if let Some(dir) = std::env::var_os("PICCLE_SPEC_DIR") {
@@ -54,12 +54,14 @@ fn actual_schedule(spec: &Path, case: &serde_json::Value) -> Schedule {
         })
         .collect();
 
+    let max_tail_effect = plan.spatial_effects().iter().max_by_key(|effect| effect.tail_frames());
+
     Schedule {
         document_duration_ms: document.duration_ms,
         dry_end_frame: plan.dry_end_frame(),
         output_end_frame: plan.output_frames(),
-        tail_frames: plan.reverb().map_or(0, |reverb| reverb.tail_frames()),
-        terminal_window_frames: plan.reverb().map_or(0, |reverb| reverb.window_frames()),
+        tail_frames: max_tail_effect.map_or(0, SpatialEffectPlan::tail_frames),
+        terminal_window_frames: max_tail_effect.map_or(0, SpatialEffectPlan::window_frames),
         layers,
     }
 }
@@ -127,5 +129,19 @@ fn simultaneous_half_open_boundary_schedule_matches() {
 fn nonadditive_reverb_tail_boundary_schedule_matches() {
     let (spec, cases) = load_cases();
     let case = case_by_id(&cases, "nonadditive-reverb-tail-boundary");
+    assert_eq!(actual_schedule(&spec, case), expected_schedule(case));
+}
+
+#[test]
+fn stacked_reverb_then_echo_schedule_matches() {
+    let (spec, cases) = load_cases();
+    let case = case_by_id(&cases, "stacked-reverb-then-echo");
+    assert_eq!(actual_schedule(&spec, case), expected_schedule(case));
+}
+
+#[test]
+fn stacked_echo_then_reverb_schedule_matches() {
+    let (spec, cases) = load_cases();
+    let case = case_by_id(&cases, "stacked-echo-then-reverb");
     assert_eq!(actual_schedule(&spec, case), expected_schedule(case));
 }

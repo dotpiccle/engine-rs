@@ -13,8 +13,8 @@ use std::time::{Duration, Instant};
 use piccle_core::curve::Curve;
 use piccle_core::error::PiccleError;
 use piccle_core::model::{
-    ContourEntry, Document, Filter, FilterType, Layer, Reverb, Source, ToneSource, VolumeContour,
-    Waveform,
+    ContourEntry, Document, Filter, FilterType, Layer, Reverb, Source, SpatialEffect, ToneSource,
+    VolumeContour, Waveform,
 };
 use piccle_render::{RenderPlan, Renderer as LowLevelRenderer};
 
@@ -88,7 +88,7 @@ struct ToneLayerParams {
 struct DocumentParams {
     layers: Vec<Layer>,
     duration_ms: u64,
-    reverb: Option<Reverb>,
+    spatial_effects: Vec<SpatialEffect>,
 }
 
 fn held_hz(hz: f64) -> ContourEntry {
@@ -129,7 +129,7 @@ fn document(params: DocumentParams) -> Document {
         description: None,
         duration_ms: params.duration_ms,
         master_volume_level: 1.0,
-        reverb: params.reverb,
+        spatial_effects: params.spatial_effects,
         layers: params.layers,
     }
 }
@@ -146,7 +146,7 @@ fn oscillator_case() -> BenchCase {
                 hz: 20.0,
             })],
             duration_ms,
-            reverb: None,
+            spatial_effects: Vec::new(),
         }),
         measured_frames: 48_000,
     }
@@ -175,7 +175,11 @@ fn representative_case() -> BenchCase {
         document: document(DocumentParams {
             layers,
             duration_ms,
-            reverb: Some(Reverb { amount: 0.3, tail_ms: 500, soften_hz: 4_000.0 }),
+            spatial_effects: vec![SpatialEffect::Reverb(Reverb {
+                amount: 0.3,
+                tail_ms: 500,
+                soften_hz: 4_000.0,
+            })],
         }),
         measured_frames: 48_000,
     }
@@ -211,7 +215,11 @@ fn maximum_case() -> BenchCase {
         document: document(DocumentParams {
             layers,
             duration_ms,
-            reverb: Some(Reverb { amount: 0.5, tail_ms: 500, soften_hz: 4_000.0 }),
+            spatial_effects: vec![SpatialEffect::Reverb(Reverb {
+                amount: 0.5,
+                tail_ms: 500,
+                soften_hz: 4_000.0,
+            })],
         }),
         measured_frames: 4_096,
     }
@@ -329,10 +337,11 @@ fn print_result(result: &BenchResult) {
     );
 }
 
-const OFFICIAL_EXAMPLES: [(&str, &[u8]); 14] = [
+const OFFICIAL_EXAMPLES: [(&str, &[u8]); 15] = [
     ("example_bloom", include_bytes!("../../../../piccle-spec/examples/bloom.json")),
     ("example_button_click", include_bytes!("../../../../piccle-spec/examples/button-click.json")),
     ("example_droplet", include_bytes!("../../../../piccle-spec/examples/droplet.json")),
+    ("example_echo", include_bytes!("../../../../piccle-spec/examples/echo.json")),
     ("example_error", include_bytes!("../../../../piccle-spec/examples/error.json")),
     ("example_loading", include_bytes!("../../../../piccle-spec/examples/loading.json")),
     ("example_notification", include_bytes!("../../../../piccle-spec/examples/notification.json")),

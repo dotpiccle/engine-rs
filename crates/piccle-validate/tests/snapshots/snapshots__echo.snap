@@ -4,37 +4,34 @@ expression: document
 ---
 Document {
     name: Some(
-        "Droplet",
+        "Echo",
     ),
     description: Some(
-        "A single note gliding smoothly downward, like a drop of water.",
+        "A soft repeating echo on a simple tone — a general-purpose echo primitive preset.",
     ),
-    duration_ms: 120,
+    duration_ms: 60,
     master_volume_level: 1.0,
-    spatial_effects: [],
+    spatial_effects: [
+        Echo(
+            Echo {
+                delay_ms: 90,
+                feedback: 0.2,
+                wet_gain: 0.15,
+                damp_hz: 3000.0,
+            },
+        ),
+    ],
     layers: [
         Layer {
-            id: "drop",
+            id: "tone",
             start_ms: 0,
-            duration_ms: 120,
+            duration_ms: 60,
             source: Tone(
                 ToneSource {
                     wave: Sine,
                     frequencies: [
                         ContourEntry {
-                            target: 620.0,
-                            hold_ms: 0,
-                            transition_ms: 50,
-                            transition_curve: Exponential,
-                        },
-                        ContourEntry {
-                            target: 430.0,
-                            hold_ms: 0,
-                            transition_ms: 30,
-                            transition_curve: Linear,
-                        },
-                        ContourEntry {
-                            target: 310.0,
+                            target: 880.0,
                             hold_ms: 0,
                             transition_ms: 0,
                             transition_curve: Linear,
@@ -49,18 +46,12 @@ Document {
                     curve: Linear,
                 },
                 fade_out: FadeStage {
-                    ms: 15,
+                    ms: 30,
                     curve: Linear,
                 },
                 levels: [
                     ContourEntry {
-                        target: 0.6,
-                        hold_ms: 0,
-                        transition_ms: 30,
-                        transition_curve: Exponential,
-                    },
-                    ContourEntry {
-                        target: 0.06,
+                        target: 0.5,
                         hold_ms: 0,
                         transition_ms: 0,
                         transition_curve: Linear,
