@@ -1,0 +1,189 @@
+---
+source: crates/piccle-validate/tests/snapshots.rs
+expression: document
+---
+Document {
+    name: Some(
+        "Error",
+    ),
+    description: Some(
+        "A muted tick followed by two falling tones — a calm, recoverable error.",
+    ),
+    duration_ms: 340,
+    master_volume_level: 1.0,
+    reverb: None,
+    layers: [
+        Layer {
+            id: "tick",
+            start_ms: 0,
+            duration_ms: 60,
+            source: Noise(
+                NoiseSource {
+                    character: Neutral,
+                    seed: 0,
+                },
+            ),
+            volume: VolumeContour {
+                fade_in: FadeStage {
+                    ms: 0,
+                    curve: Linear,
+                },
+                fade_out: FadeStage {
+                    ms: 5,
+                    curve: Linear,
+                },
+                levels: [
+                    ContourEntry {
+                        target: 0.5,
+                        hold_ms: 0,
+                        transition_ms: 0,
+                        transition_curve: Linear,
+                    },
+                ],
+            },
+            balance: 0.0,
+            filters: [
+                Filter {
+                    filter_type: Bandpass,
+                    frequencies: [
+                        ContourEntry {
+                            target: 2000.0,
+                            hold_ms: 0,
+                            transition_ms: 0,
+                            transition_curve: Linear,
+                        },
+                    ],
+                    resonance: 0.3,
+                },
+            ],
+        },
+        Layer {
+            id: "tone1",
+            start_ms: 40,
+            duration_ms: 250,
+            source: Tone(
+                ToneSource {
+                    wave: Triangle,
+                    frequencies: [
+                        ContourEntry {
+                            target: 400.0,
+                            hold_ms: 0,
+                            transition_ms: 120,
+                            transition_curve: Exponential,
+                        },
+                        ContourEntry {
+                            target: 280.0,
+                            hold_ms: 0,
+                            transition_ms: 0,
+                            transition_curve: Linear,
+                        },
+                    ],
+                    offset_cents: 0,
+                },
+            ),
+            volume: VolumeContour {
+                fade_in: FadeStage {
+                    ms: 5,
+                    curve: Linear,
+                },
+                fade_out: FadeStage {
+                    ms: 50,
+                    curve: Linear,
+                },
+                levels: [
+                    ContourEntry {
+                        target: 0.45,
+                        hold_ms: 0,
+                        transition_ms: 30,
+                        transition_curve: Exponential,
+                    },
+                    ContourEntry {
+                        target: 0.08,
+                        hold_ms: 0,
+                        transition_ms: 0,
+                        transition_curve: Linear,
+                    },
+                ],
+            },
+            balance: 0.0,
+            filters: [
+                Filter {
+                    filter_type: Lowpass,
+                    frequencies: [
+                        ContourEntry {
+                            target: 1000.0,
+                            hold_ms: 0,
+                            transition_ms: 0,
+                            transition_curve: Linear,
+                        },
+                    ],
+                    resonance: 0.0,
+                },
+            ],
+        },
+        Layer {
+            id: "tone2",
+            start_ms: 140,
+            duration_ms: 200,
+            source: Tone(
+                ToneSource {
+                    wave: Triangle,
+                    frequencies: [
+                        ContourEntry {
+                            target: 300.0,
+                            hold_ms: 0,
+                            transition_ms: 80,
+                            transition_curve: Exponential,
+                        },
+                        ContourEntry {
+                            target: 200.0,
+                            hold_ms: 0,
+                            transition_ms: 0,
+                            transition_curve: Linear,
+                        },
+                    ],
+                    offset_cents: 0,
+                },
+            ),
+            volume: VolumeContour {
+                fade_in: FadeStage {
+                    ms: 5,
+                    curve: Linear,
+                },
+                fade_out: FadeStage {
+                    ms: 50,
+                    curve: Linear,
+                },
+                levels: [
+                    ContourEntry {
+                        target: 0.4,
+                        hold_ms: 0,
+                        transition_ms: 30,
+                        transition_curve: Exponential,
+                    },
+                    ContourEntry {
+                        target: 0.06,
+                        hold_ms: 0,
+                        transition_ms: 0,
+                        transition_curve: Linear,
+                    },
+                ],
+            },
+            balance: 0.0,
+            filters: [
+                Filter {
+                    filter_type: Lowpass,
+                    frequencies: [
+                        ContourEntry {
+                            target: 1000.0,
+                            hold_ms: 0,
+                            transition_ms: 0,
+                            transition_curve: Linear,
+                        },
+                    ],
+                    resonance: 0.0,
+                },
+            ],
+        },
+    ],
+}

@@ -1,0 +1,5 @@
+---
+source: crates/piccle-validate/tests/snapshots.rs
+expression: "format!(\"{} {} {}\", error.stage(), error.code(), error.path())"
+---
+schema schema.additionalProperties $.layers[0].source.gain

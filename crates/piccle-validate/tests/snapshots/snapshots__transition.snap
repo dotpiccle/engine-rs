@@ -1,0 +1,79 @@
+---
+source: crates/piccle-validate/tests/snapshots.rs
+expression: document
+---
+Document {
+    name: Some(
+        "Transition",
+    ),
+    description: Some(
+        "A brightening whoosh — noise that opens up from dull to crisp.",
+    ),
+    duration_ms: 250,
+    master_volume_level: 1.0,
+    reverb: None,
+    layers: [
+        Layer {
+            id: "whoosh",
+            start_ms: 0,
+            duration_ms: 250,
+            source: Noise(
+                NoiseSource {
+                    character: Neutral,
+                    seed: 0,
+                },
+            ),
+            volume: VolumeContour {
+                fade_in: FadeStage {
+                    ms: 5,
+                    curve: Linear,
+                },
+                fade_out: FadeStage {
+                    ms: 30,
+                    curve: Linear,
+                },
+                levels: [
+                    ContourEntry {
+                        target: 0.01,
+                        hold_ms: 0,
+                        transition_ms: 60,
+                        transition_curve: EaseIn,
+                    },
+                    ContourEntry {
+                        target: 0.5,
+                        hold_ms: 30,
+                        transition_ms: 60,
+                        transition_curve: EaseOut,
+                    },
+                    ContourEntry {
+                        target: 0.1,
+                        hold_ms: 0,
+                        transition_ms: 0,
+                        transition_curve: Linear,
+                    },
+                ],
+            },
+            balance: 0.0,
+            filters: [
+                Filter {
+                    filter_type: Lowpass,
+                    frequencies: [
+                        ContourEntry {
+                            target: 300.0,
+                            hold_ms: 0,
+                            transition_ms: 200,
+                            transition_curve: Exponential,
+                        },
+                        ContourEntry {
+                            target: 8000.0,
+                            hold_ms: 0,
+                            transition_ms: 0,
+                            transition_curve: Linear,
+                        },
+                    ],
+                    resonance: 0.0,
+                },
+            ],
+        },
+    ],
+}

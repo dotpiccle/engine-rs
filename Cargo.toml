@@ -3,12 +3,13 @@
 # that piccle-render MUST NOT depend on piccle-validate or any JSON crate.
 
 [workspace]
-resolver = "2"
+resolver = "3"
+# piccle-fuzz is intentionally NOT a workspace member: cargo-fuzz crates must be
+# detached so that libfuzzer-sys does not build during normal workspace builds.
 members = [
     "crates/piccle",
     "crates/piccle-core",
     "crates/piccle-dsp",
-    "crates/piccle-fuzz",
     "crates/piccle-render",
     "crates/piccle-validate",
     "crates/xtask",
@@ -18,14 +19,14 @@ default-members = ["crates/piccle"]
 [workspace.package]
 version = "0.1.0"
 authors = ["Piccle <engineering@dotpiccle.com>"]
-categories = ["multimedia::audio", "no-std", "parser-implementations"]
+categories = ["multimedia::audio", "parser-implementations"]
 documentation = "https://docs.rs/piccle"
 edition = "2024"
 homepage = "https://dotpiccle.com"
 keywords = ["audio", "dsp", "synthesis", "ui-sound", "piccle"]
 license = "MIT"
 publish = true
-readme = "../../README.md"
+readme = "README.md"
 repository = "https://github.com/dotpiccle/engine-rs"
 rust-version = "1.85"
 
@@ -37,34 +38,27 @@ piccle-dsp = { path = "crates/piccle-dsp", version = "0.1.0" }
 piccle-render = { path = "crates/piccle-render", version = "0.1.0" }
 piccle-validate = { path = "crates/piccle-validate", version = "0.1.0" }
 
-# External crates — pinned to exact minor versions for reproducibility
-jsonschema = { version = "0.22", default-features = false }
-once_cell = "1.20"
-serde = { version = "1.0", features = ["derive"] }
+# External crates. Cargo.lock pins workspace builds; published libraries keep
+# compatible version ranges so downstream applications can unify dependencies.
 serde_json = { version = "1.0", features = ["preserve_order"] }
 thiserror = "2.0"
 
 # Dev-only
-# Project-local git hooks: auto-installs .cargo-husky/hooks/* into .git/hooks/
-# on `cargo test`. See §11. Disable with
-# CARGO_HUSKY_DONT_INSTALL_HOOKS=true cargo test.
-cargo-husky = { version = "1", default-features = false, features = ["user-hooks"] }
 criterion = { version = "0.5", features = ["html_reports"] }
-divan = "0.1"
 insta = { version = "1.40", features = ["json"] }
 proptest = "1.5"
 
 [workspace.lints.rust]
 unsafe_code = "forbid"
-missing_docs = "allow"
+missing_docs = "deny"
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(fuzzing)'] }
 
 [workspace.lints.clippy]
-unwrap_used = "warn"
-expect_used = "warn"
-panic = "warn"
 excessive_precision = "allow"
 identity_op = "allow"
+
+[workspace.lints.rustdoc]
+broken_intra_doc_links = "deny"
 
 [profile.release]
 debug = "line-tables-only"

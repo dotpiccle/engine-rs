@@ -1,0 +1,130 @@
+---
+source: crates/piccle-validate/tests/snapshots.rs
+expression: document
+---
+Document {
+    name: Some(
+        "Loading",
+    ),
+    description: Some(
+        "A brief rising shimmer that doesn't quite resolve — work has started.",
+    ),
+    duration_ms: 250,
+    master_volume_level: 1.0,
+    reverb: Some(
+        Reverb {
+            amount: 0.35,
+            tail_ms: 350,
+            soften_hz: 5000.0,
+        },
+    ),
+    layers: [
+        Layer {
+            id: "shimmer",
+            start_ms: 0,
+            duration_ms: 250,
+            source: Noise(
+                NoiseSource {
+                    character: Sharp,
+                    seed: 0,
+                },
+            ),
+            volume: VolumeContour {
+                fade_in: FadeStage {
+                    ms: 5,
+                    curve: Linear,
+                },
+                fade_out: FadeStage {
+                    ms: 40,
+                    curve: Linear,
+                },
+                levels: [
+                    ContourEntry {
+                        target: 0.3,
+                        hold_ms: 0,
+                        transition_ms: 80,
+                        transition_curve: EaseIn,
+                    },
+                    ContourEntry {
+                        target: 0.12,
+                        hold_ms: 0,
+                        transition_ms: 0,
+                        transition_curve: Linear,
+                    },
+                ],
+            },
+            balance: 0.0,
+            filters: [
+                Filter {
+                    filter_type: Lowpass,
+                    frequencies: [
+                        ContourEntry {
+                            target: 400.0,
+                            hold_ms: 0,
+                            transition_ms: 200,
+                            transition_curve: Exponential,
+                        },
+                        ContourEntry {
+                            target: 6000.0,
+                            hold_ms: 0,
+                            transition_ms: 0,
+                            transition_curve: Linear,
+                        },
+                    ],
+                    resonance: 0.1,
+                },
+            ],
+        },
+        Layer {
+            id: "lift",
+            start_ms: 0,
+            duration_ms: 250,
+            source: Tone(
+                ToneSource {
+                    wave: Sine,
+                    frequencies: [
+                        ContourEntry {
+                            target: 440.0,
+                            hold_ms: 0,
+                            transition_ms: 200,
+                            transition_curve: Exponential,
+                        },
+                        ContourEntry {
+                            target: 660.0,
+                            hold_ms: 0,
+                            transition_ms: 0,
+                            transition_curve: Linear,
+                        },
+                    ],
+                    offset_cents: 0,
+                },
+            ),
+            volume: VolumeContour {
+                fade_in: FadeStage {
+                    ms: 10,
+                    curve: Linear,
+                },
+                fade_out: FadeStage {
+                    ms: 50,
+                    curve: Linear,
+                },
+                levels: [
+                    ContourEntry {
+                        target: 0.25,
+                        hold_ms: 0,
+                        transition_ms: 40,
+                        transition_curve: Exponential,
+                    },
+                    ContourEntry {
+                        target: 0.04,
+                        hold_ms: 0,
+                        transition_ms: 0,
+                        transition_curve: Linear,
+                    },
+                ],
+            },
+            balance: 0.0,
+            filters: [],
+        },
+    ],
+}

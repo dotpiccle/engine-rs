@@ -1,6 +1,6 @@
 #!/bin/sh
 # Pre-push hook for the piccle engine.
-# Installed by cargo-husky via `cargo setup` (or `cargo test` as fallback).
+# Activated through the repository-local core.hooksPath set by `cargo setup`.
 # CI remains the authoritative gate; this is a fast-feedback convenience.
 # Bypass for a WIP push: git push --no-verify
 
@@ -10,4 +10,9 @@ echo '+cargo deny check'
 cargo deny check
 
 echo '+cargo nextest run --workspace --all-features'
-cargo nextest run --workspace --all-features || cargo test --workspace --all-features
+if command -v cargo-nextest >/dev/null 2>&1; then
+    cargo nextest run --workspace --all-features
+else
+    echo 'cargo-nextest is unavailable; using cargo test'
+    cargo test --workspace --all-features
+fi

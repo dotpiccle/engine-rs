@@ -1,0 +1,197 @@
+---
+source: crates/piccle-validate/tests/snapshots.rs
+expression: document
+---
+Document {
+    name: Some(
+        "Sparkle",
+    ),
+    description: Some(
+        "Four quick rising notes — a playful twinkle.",
+    ),
+    duration_ms: 400,
+    master_volume_level: 1.0,
+    reverb: None,
+    layers: [
+        Layer {
+            id: "note1",
+            start_ms: 0,
+            duration_ms: 200,
+            source: Tone(
+                ToneSource {
+                    wave: Sine,
+                    frequencies: [
+                        ContourEntry {
+                            target: 523.0,
+                            hold_ms: 0,
+                            transition_ms: 0,
+                            transition_curve: Linear,
+                        },
+                    ],
+                    offset_cents: 0,
+                },
+            ),
+            volume: VolumeContour {
+                fade_in: FadeStage {
+                    ms: 1,
+                    curve: Linear,
+                },
+                fade_out: FadeStage {
+                    ms: 40,
+                    curve: Linear,
+                },
+                levels: [
+                    ContourEntry {
+                        target: 0.5,
+                        hold_ms: 0,
+                        transition_ms: 30,
+                        transition_curve: Exponential,
+                    },
+                    ContourEntry {
+                        target: 0.04,
+                        hold_ms: 0,
+                        transition_ms: 0,
+                        transition_curve: Linear,
+                    },
+                ],
+            },
+            balance: 0.0,
+            filters: [],
+        },
+        Layer {
+            id: "note2",
+            start_ms: 60,
+            duration_ms: 200,
+            source: Tone(
+                ToneSource {
+                    wave: Sine,
+                    frequencies: [
+                        ContourEntry {
+                            target: 659.0,
+                            hold_ms: 0,
+                            transition_ms: 0,
+                            transition_curve: Linear,
+                        },
+                    ],
+                    offset_cents: 0,
+                },
+            ),
+            volume: VolumeContour {
+                fade_in: FadeStage {
+                    ms: 1,
+                    curve: Linear,
+                },
+                fade_out: FadeStage {
+                    ms: 40,
+                    curve: Linear,
+                },
+                levels: [
+                    ContourEntry {
+                        target: 0.5,
+                        hold_ms: 0,
+                        transition_ms: 30,
+                        transition_curve: Exponential,
+                    },
+                    ContourEntry {
+                        target: 0.04,
+                        hold_ms: 0,
+                        transition_ms: 0,
+                        transition_curve: Linear,
+                    },
+                ],
+            },
+            balance: 0.0,
+            filters: [],
+        },
+        Layer {
+            id: "note3",
+            start_ms: 130,
+            duration_ms: 200,
+            source: Tone(
+                ToneSource {
+                    wave: Sine,
+                    frequencies: [
+                        ContourEntry {
+                            target: 784.0,
+                            hold_ms: 0,
+                            transition_ms: 0,
+                            transition_curve: Linear,
+                        },
+                    ],
+                    offset_cents: 0,
+                },
+            ),
+            volume: VolumeContour {
+                fade_in: FadeStage {
+                    ms: 1,
+                    curve: Linear,
+                },
+                fade_out: FadeStage {
+                    ms: 40,
+                    curve: Linear,
+                },
+                levels: [
+                    ContourEntry {
+                        target: 0.5,
+                        hold_ms: 0,
+                        transition_ms: 30,
+                        transition_curve: Exponential,
+                    },
+                    ContourEntry {
+                        target: 0.04,
+                        hold_ms: 0,
+                        transition_ms: 0,
+                        transition_curve: Linear,
+                    },
+                ],
+            },
+            balance: 0.0,
+            filters: [],
+        },
+        Layer {
+            id: "note4",
+            start_ms: 200,
+            duration_ms: 200,
+            source: Tone(
+                ToneSource {
+                    wave: Sine,
+                    frequencies: [
+                        ContourEntry {
+                            target: 1047.0,
+                            hold_ms: 0,
+                            transition_ms: 0,
+                            transition_curve: Linear,
+                        },
+                    ],
+                    offset_cents: 0,
+                },
+            ),
+            volume: VolumeContour {
+                fade_in: FadeStage {
+                    ms: 1,
+                    curve: Linear,
+                },
+                fade_out: FadeStage {
+                    ms: 60,
+                    curve: Linear,
+                },
+                levels: [
+                    ContourEntry {
+                        target: 0.5,
+                        hold_ms: 0,
+                        transition_ms: 30,
+                        transition_curve: Exponential,
+                    },
+                    ContourEntry {
+                        target: 0.04,
+                        hold_ms: 0,
+                        transition_ms: 0,
+                        transition_curve: Linear,
+                    },
+                ],
+            },
+            balance: 0.0,
+            filters: [],
+        },
+    ],
+}

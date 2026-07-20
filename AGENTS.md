@@ -113,15 +113,20 @@ the preparation phase.
 
 The spec's [`piccle-spec/docs/11-engine-safety.md`](piccle-spec/docs/11-engine-safety.md) §Untrusted
 input defines a 6-step pre-render pipeline that the engine MUST follow.
-`piccle::prepare(&bytes) -> Result<RenderPlan, PiccleError>` is the ONLY way to reach the render
-path. The render path takes a `&RenderPlan` and cannot fail validation.
+`piccle::prepare(&bytes) -> Result<RenderPlan, PiccleError>` is the ONLY supported application path
+to rendering. The umbrella crate's `RenderPlan` wraps the low-level representation opaquely, so it
+cannot be constructed without validation. The render path cannot fail validation.
 
 ### 5.4 DSP matches normative formulas exactly
 
 The spec publishes exact formulas for PCG32, character filters, biquads, FDN reverb, oscillator
-harmonic series, and curve functions. Implement them verbatim. Do not substitute `rand_pcg` for the
-spec's exact PCG32 init sequence. Do not substitute a different reverb topology without passing the
-spec's qualification matrix.
+harmonic targets, and curve functions. Implement them verbatim except where the spec explicitly
+permits a numerically qualified equivalent. Production oscillators use bounded-cost band-limited
+tables and MUST pass every published harmonic, phase, DC, and alias tolerance. Do not substitute
+`rand_pcg` for the spec's exact PCG32 init sequence. The normative eight-line FDN is the only
+conforming v1 reverb topology; do not substitute convolution or another network. A low-level
+oscillator that has not yet received a frequency emits silence; public DSP primitives must not panic
+on an unconfigured zero state.
 
 ### 5.5 Portability across target platforms
 
@@ -264,12 +269,14 @@ Per spec `docs/03-sources.md`, test every oscillator at canonical measurement fr
 ## 9. Performance rules
 
 - **No-alloc render path** — enforce with a counting allocator test (`#[global_allocator]` wrapper
-  that asserts zero `alloc` calls during rendering)
-- **Constant reverb work** — FDN baseline has ~1,570 samples total delay regardless of `tail_ms`.
-  Bench `tail_ms` ∈ {1, 10, 20, 220, 500} — per-frame cost must be flat
+  that asserts zero allocation and reallocation calls during rendering)
+- **Constant reverb work** — the uncapped FDN's retained delay state scales with `tail_ms`, while
+  its dense eight-line feedback matrix keeps per-frame arithmetic constant. Bench `tail_ms` ∈ {1,
+  10, 20, 220, 500} — per-frame cost must be flat
 - **No cost spike at contour boundaries** — contour cursors advance forward, no array searching
 - **Benchmarks** — `criterion` with statistical regression detection; profile with `samply` or
-  `cargo flamegraph` on release builds
+  `cargo flamegraph` on release builds. Canonical benches live in
+  `crates/piccle-render/benches/render.rs`; run them with `cargo xtask bench`.
 - **Release profile** — `lto = "thin"`, `codegen-units = 1`, `panic = "abort"`
 
 ## 10. Security, trust & safety
@@ -292,11 +299,31 @@ be added even with `#[allow]`; it's a hard compile error.
 `piccle_validate::Validator::check(bytes)` and assert it returns `Ok` or `Err` — never panics, never
 hangs, never allocates unbounded memory.
 
+The fuzz crate is deliberately **detached from the workspace** (empty `[workspace]` table in its
+manifest) so `libfuzzer-sys` never builds during normal workspace builds. Run it with:
+
+```bash
+cargo +nightly fuzz run fuzz_parser --fuzz-dir crates/piccle-fuzz
+```
+
+Seed corpus: `piccle-spec/test-vectors/{valid,invalid}/*.json`. Corpus and crash artifacts are
+gitignored; CI compile-checks the crate via
+`cargo check --manifest-path crates/piccle-fuzz/Cargo.toml`.
+
 ### 10.4 Untrusted input
 
 Defined in [`piccle-spec/docs/11-engine-safety.md`](piccle-spec/docs/11-engine-safety.md) §Untrusted
 input (6-step pre-render pipeline). Validation produces a `RenderPlan`. The render path takes a
 `&RenderPlan` and cannot fail.
+
+Published engine limits (checked after validation, reported as `Unsupported`; public constants in
+the `piccle` crate): `MAX_DURATION_MS = 600_000`, `MAX_LAYERS = 128`, `MAX_FILTERS_PER_LAYER = 16`,
+`MAX_CONTOUR_ENTRIES = 1024`, `MAX_TAIL_MS = 60_000`, `MIN_SAMPLE_RATE = 8_000`,
+`MAX_SAMPLE_RATE = 192_000`, and `MAX_REVERB_TAIL_FRAMES = 2_880_000` for a nonzero wet path. The
+combined tail-frame limit preserves a 60-second canonical tail without allowing high-rate profiles
+to multiply reverb calibration memory and CPU cost. `Renderer::render_to_vec` has a separate 64 MiB
+convenience-allocation ceiling; longer prepared assets remain streamable with `render_into`. Parser
+limits (reported as `ResourceRejected`): 1 MiB input cap, 64 levels of nesting.
 
 ### 10.5 Denormal protection
 

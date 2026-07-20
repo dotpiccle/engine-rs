@@ -1,18 +1,144 @@
 name: Release
 
+permissions:
+  contents: read
+
 on:
   push:
     tags: ["v*.*.*"]
 
 jobs:
+  platform-tests:
+    name: tagged tests (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with: { submodules: recursive }
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c
+        with: { toolchain: stable }
+      - uses: taiki-e/install-action@25f25a6eff908c77b40880d0b1f5d2a032b6e75a
+        with: { tool: cargo-nextest }
+      - run: cargo nextest run --workspace --all-features
+      - run: cargo test --doc --workspace --all-features
+
   publish-crates:
+    needs: platform-tests
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with: { submodules: recursive }
-      - uses: dtolnay/rust-toolchain@stable
-      - run: cargo publish --dry-run --workspace --all-features
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c
+        with: { toolchain: nightly, components: rustfmt }
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c
+        with: { toolchain: "1.85" }
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c
+        with:
+          toolchain: stable
+          components: clippy
+          targets: aarch64-unknown-linux-gnu,armv7-unknown-linux-gnueabihf,wasm32-unknown-unknown,aarch64-linux-android,armv7-linux-androideabi,aarch64-apple-ios,x86_64-apple-ios
+      - uses: taiki-e/install-action@25f25a6eff908c77b40880d0b1f5d2a032b6e75a
+        with: { tool: cargo-nextest,cargo-deny,cargo-audit,cargo-hack,cargo-ndk@3.1.2,typos-cli,dprint }
+      - name: verify release tag and workspace
+        run: |
+          version=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select(.name == "piccle") | .version')
+          test "${GITHUB_REF_NAME}" = "v${version}"
+          cargo +nightly fmt --all -- --check
+          dprint check
+          typos
+          cargo hack clippy --feature-powerset --no-dev-deps -- -D warnings
+          cargo nextest run --workspace --all-features
+          cargo test --doc --workspace --all-features
+          cargo +1.85 check --workspace --all-features
+          RUSTDOCFLAGS="--cfg docsrs -D warnings" cargo +nightly doc -Zunstable-options --no-deps --workspace --all-features
+          cargo check --manifest-path crates/piccle-fuzz/Cargo.toml
+          cargo check --workspace --all-features --target aarch64-unknown-linux-gnu
+          cargo check --workspace --all-features --target armv7-unknown-linux-gnueabihf
+          cargo check --workspace --all-features --target aarch64-linux-android
+          cargo check --workspace --all-features --target armv7-linux-androideabi
+          cargo ndk -t armeabi-v7a -p 21 build --release -p xtask --bin piccle-device-bench
+          cargo check --workspace --all-features --target aarch64-apple-ios
+          cargo check --workspace --all-features --target x86_64-apple-ios
+          cargo check -p piccle-core -p piccle-dsp -p piccle-render --target wasm32-unknown-unknown
+          cargo deny check
+          cargo audit
+          python3 piccle-spec/scripts/validate.py
+          cargo xtask conformance --piccle-spec piccle-spec
+      - name: verify published archive contents
+        shell: bash
+        run: |
+          set -euo pipefail
+          for crate in piccle-core piccle-dsp piccle-validate piccle-render piccle; do
+            cargo package --locked -p "$crate" --list > "/tmp/${crate}.package-files"
+            grep --line-regexp 'LICENSE' "/tmp/${crate}.package-files"
+            grep --line-regexp 'README.md' "/tmp/${crate}.package-files"
+            if grep --quiet '^tests/' "/tmp/${crate}.package-files"; then
+              echo "${crate} archive contains repository-only integration tests" >&2
+              exit 1
+            fi
+          done
+          grep --line-regexp 'test-data/reverb-matrix-vector.json' /tmp/piccle-dsp.package-files
       - name: publish to crates.io
-        run: cargo publish --workspace --all-features
+        shell: bash
+        run: |
+          set -euo pipefail
+          version=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select(.name == "piccle") | .version')
+          publish_crate() {
+            crate="$1"
+            endpoint="https://crates.io/api/v1/crates/${crate}/${version}"
+            if curl --fail --silent --show-error "$endpoint" >/dev/null; then
+              echo "${crate} ${version} is already published"
+              return
+            fi
+            published=false
+            for attempt in {1..12}; do
+              if curl --fail --silent "$endpoint" >/dev/null; then
+                published=true
+                break
+              fi
+              if cargo publish --locked -p "$crate"; then
+                published=true
+                break
+              fi
+              echo "Publish attempt ${attempt} for ${crate} failed; waiting for registry propagation" >&2
+              sleep 10
+            done
+            if [ "$published" != true ]; then
+              echo "Could not publish ${crate} ${version} after 12 attempts" >&2
+              return 1
+            fi
+            for attempt in {1..30}; do
+              if curl --fail --silent "$endpoint" >/dev/null; then
+                return
+              fi
+              sleep 10
+            done
+            echo "${crate} ${version} did not become visible on crates.io" >&2
+            return 1
+          }
+          publish_crate piccle-core
+          publish_crate piccle-dsp
+          publish_crate piccle-validate
+          publish_crate piccle-render
+          publish_crate piccle
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+      - name: create GitHub Release
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
+            echo "GitHub Release ${GITHUB_REF_NAME} already exists"
+          else
+            gh release create "${GITHUB_REF_NAME}" \
+              --verify-tag \
+              --generate-notes \
+              --title "Piccle Engine ${GITHUB_REF_NAME}"
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}

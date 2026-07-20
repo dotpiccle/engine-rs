@@ -3,12 +3,14 @@ name = "piccle-dsp"
 version = { workspace = true }
 authors = { workspace = true }
 categories = { workspace = true }
-documentation = { workspace = true }
+documentation = "https://docs.rs/piccle-dsp"
 edition = { workspace = true }
+exclude = ["/tests"]
 homepage = { workspace = true }
 keywords = { workspace = true }
 license = { workspace = true }
 publish = { workspace = true }
+readme = { workspace = true }
 repository = { workspace = true }
 rust-version = { workspace = true }
 description = "DSP primitives for the Piccle engine: PCG32 noise, tone oscillators, biquad filters, and FDN reverb."
@@ -19,7 +21,10 @@ workspace = true
 [dependencies]
 piccle-core = { workspace = true }
 
+[[bench]]
+name = "reverb_prepare"
+harness = false
+
 [dev-dependencies]
-cargo-husky = { workspace = true }
 criterion = { workspace = true }
-proptest = { workspace = true }
+serde_json = { workspace = true, features = ["arbitrary_precision"] }

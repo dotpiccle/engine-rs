@@ -1,0 +1,113 @@
+---
+source: crates/piccle-validate/tests/snapshots.rs
+expression: document
+---
+Document {
+    name: Some(
+        "Notification",
+    ),
+    description: Some(
+        "A single soft bell, warmed with a slight pitch offset and gentle reverb.",
+    ),
+    duration_ms: 350,
+    master_volume_level: 1.0,
+    reverb: Some(
+        Reverb {
+            amount: 0.25,
+            tail_ms: 300,
+            soften_hz: 6000.0,
+        },
+    ),
+    layers: [
+        Layer {
+            id: "bell-1",
+            start_ms: 0,
+            duration_ms: 350,
+            source: Tone(
+                ToneSource {
+                    wave: Sine,
+                    frequencies: [
+                        ContourEntry {
+                            target: 880.0,
+                            hold_ms: 0,
+                            transition_ms: 0,
+                            transition_curve: Linear,
+                        },
+                    ],
+                    offset_cents: 0,
+                },
+            ),
+            volume: VolumeContour {
+                fade_in: FadeStage {
+                    ms: 2,
+                    curve: Linear,
+                },
+                fade_out: FadeStage {
+                    ms: 80,
+                    curve: Linear,
+                },
+                levels: [
+                    ContourEntry {
+                        target: 0.55,
+                        hold_ms: 0,
+                        transition_ms: 40,
+                        transition_curve: Exponential,
+                    },
+                    ContourEntry {
+                        target: 0.06,
+                        hold_ms: 0,
+                        transition_ms: 0,
+                        transition_curve: Linear,
+                    },
+                ],
+            },
+            balance: 0.0,
+            filters: [],
+        },
+        Layer {
+            id: "bell-2",
+            start_ms: 0,
+            duration_ms: 350,
+            source: Tone(
+                ToneSource {
+                    wave: Sine,
+                    frequencies: [
+                        ContourEntry {
+                            target: 880.0,
+                            hold_ms: 0,
+                            transition_ms: 0,
+                            transition_curve: Linear,
+                        },
+                    ],
+                    offset_cents: 10,
+                },
+            ),
+            volume: VolumeContour {
+                fade_in: FadeStage {
+                    ms: 2,
+                    curve: Linear,
+                },
+                fade_out: FadeStage {
+                    ms: 80,
+                    curve: Linear,
+                },
+                levels: [
+                    ContourEntry {
+                        target: 0.3,
+                        hold_ms: 0,
+                        transition_ms: 40,
+                        transition_curve: Exponential,
+                    },
+                    ContourEntry {
+                        target: 0.03,
+                        hold_ms: 0,
+                        transition_ms: 0,
+                        transition_curve: Linear,
+                    },
+                ],
+            },
+            balance: 0.0,
+            filters: [],
+        },
+    ],
+}

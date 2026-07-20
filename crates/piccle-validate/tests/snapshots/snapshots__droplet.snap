@@ -1,0 +1,74 @@
+---
+source: crates/piccle-validate/tests/snapshots.rs
+expression: document
+---
+Document {
+    name: Some(
+        "Droplet",
+    ),
+    description: Some(
+        "A single note gliding smoothly downward, like a drop of water.",
+    ),
+    duration_ms: 120,
+    master_volume_level: 1.0,
+    reverb: None,
+    layers: [
+        Layer {
+            id: "drop",
+            start_ms: 0,
+            duration_ms: 120,
+            source: Tone(
+                ToneSource {
+                    wave: Sine,
+                    frequencies: [
+                        ContourEntry {
+                            target: 620.0,
+                            hold_ms: 0,
+                            transition_ms: 50,
+                            transition_curve: Exponential,
+                        },
+                        ContourEntry {
+                            target: 430.0,
+                            hold_ms: 0,
+                            transition_ms: 30,
+                            transition_curve: Linear,
+                        },
+                        ContourEntry {
+                            target: 310.0,
+                            hold_ms: 0,
+                            transition_ms: 0,
+                            transition_curve: Linear,
+                        },
+                    ],
+                    offset_cents: 0,
+                },
+            ),
+            volume: VolumeContour {
+                fade_in: FadeStage {
+                    ms: 2,
+                    curve: Linear,
+                },
+                fade_out: FadeStage {
+                    ms: 15,
+                    curve: Linear,
+                },
+                levels: [
+                    ContourEntry {
+                        target: 0.6,
+                        hold_ms: 0,
+                        transition_ms: 30,
+                        transition_curve: Exponential,
+                    },
+                    ContourEntry {
+                        target: 0.06,
+                        hold_ms: 0,
+                        transition_ms: 0,
+                        transition_curve: Linear,
+                    },
+                ],
+            },
+            balance: 0.0,
+            filters: [],
+        },
+    ],
+}
