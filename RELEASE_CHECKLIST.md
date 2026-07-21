@@ -1,14 +1,16 @@
 # Release Checklist
 
 Use this checklist on the exact commit that will be tagged. A green command from another revision is
-not release evidence. Do not tag while any applicable item remains unchecked.
+not release evidence. Do not tag while any applicable item for the selected release scope remains
+unchecked. A GitHub source release and crates.io publication are separate operations; `v1.0.0` is a
+GitHub source release only.
 
 ## Specification and conformance
 
 - [ ] Record the pinned specification commit in `CONFORMANCE.md` and confirm it matches
       `git ls-files -s piccle-spec`.
 - [ ] Run the specification validator from the submodule: `python3 piccle-spec/scripts/validate.py`.
-- [ ] Run `cargo xtask conformance --piccle-spec piccle-spec`.
+- [ ] Run `cargo conformance --piccle-spec piccle-spec` (release-profile xtask).
 - [ ] Confirm every valid and invalid fixture is discovered dynamically; do not hard-code inventory
       counts as test selection.
 - [ ] Render every official example in canonical mode with exact frame counts and finite output.
@@ -57,13 +59,17 @@ not release evidence. Do not tag while any applicable item remains unchecked.
 
 ## Performance and perceptual qualification
 
+Device and listening items apply to the hardware or perceptual profiles explicitly claimed by the
+release. A portable source release may record them as not applicable, but must not turn missing
+evidence into a device-specific or perceptual claim.
+
 - [ ] Run `cargo xtask bench` in the release profile and preserve the Criterion comparison data.
-- [ ] Connect the lowest supported ARMv7 Android device and run `cargo xtask device-bench`.
+- [ ] Connect an available representative Android device and run `cargo xtask device-bench`.
 - [ ] Preserve device model, Android version, CPU/RAM context, preparation latency, process peak
       RSS, throughput, real-time factor, maximum 128-frame callback latency, and callback-spike
       ratio.
-- [ ] Profile all 15 official examples, the 20 Hz oscillator risk case, the moving-filter case, and
-      the published maximum workload on that device.
+- [ ] Profile all official examples, the 20 Hz oscillator risk case, the moving-filter case, and the
+      published maximum workload on that device.
 - [ ] State explicitly which workloads are live, ahead-of-playback, cached, or offline; resource
       acceptance ceilings are not live-real-time promises.
 - [ ] Listen on neutral headphones, full-range speakers, a small-device speaker, and the
@@ -75,8 +81,8 @@ not release evidence. Do not tag while any applicable item remains unchecked.
 
 ## Package and publication integrity
 
-- [ ] Update `CHANGELOG.md`, `README.md`, `BENCHMARKS.md`, `SECURITY.md`, and `CONFORMANCE.md` for
-      the release behavior and evidence.
+- [ ] Update `CHANGELOG.md`, `README.md`, `RELEASE_NOTES.md`, `BENCHMARKS.md`, `SECURITY.md`, and
+      `CONFORMANCE.md` for the release behavior and evidence.
 - [ ] Confirm every public item has accurate rustdoc and every public limit is exported by the
       umbrella crate.
 - [ ] Run `cargo package --locked -p <crate> --list` for all five published crates; confirm each
@@ -87,12 +93,15 @@ not release evidence. Do not tag while any applicable item remains unchecked.
 - [ ] Confirm all workspace crate versions and internal dependency requirements match the release
       version.
 - [ ] Confirm the tag exactly matches `v<workspace-version>`.
-- [ ] Create a signed tag from the already validated commit; never repair code after tagging.
-- [ ] Let the tag workflow publish crates in dependency order and verify each version becomes
-      visible through the crates.io API.
-- [ ] After the first crates.io publication, replace the long-lived registry token with crates.io
-      Trusted Publishing (OIDC) scoped to the protected `release` environment.
+- [ ] Create an annotated, protected tag from the already validated commit; never repair code after
+      tagging. Sign it when a project signing identity is configured.
+- [ ] Confirm the tag workflow has no crates.io credential or publication step for the GitHub-only
+      `v1.0.0` release.
+- [ ] When registry publication is separately authorized, publish crates in dependency order and
+      verify each version becomes visible through the crates.io API.
+- [ ] For the first crates.io publication, use crates.io Trusted Publishing (OIDC) scoped to the
+      protected `release` environment; do not restore a long-lived registry token.
 - [ ] From v0.1.1 onward, run `cargo-semver-checks` against the latest published baseline before
       tagging.
-- [ ] Verify docs.rs builds and create the GitHub Release with the conformance/device/listening
-      evidence.
+- [ ] Create the GitHub Release with the conformance/device/listening evidence. Verify docs.rs only
+      when crates.io publication is authorized.

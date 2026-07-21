@@ -91,10 +91,10 @@ output storage, and frame formula).
 ### 4.3 Required verification
 
 The complete verification checklist is defined in
-[`piccle-spec/docs/15-engine-build-guide.md`](piccle-spec/docs/15-engine-build-guide.md) §Engine
-conformance verification (9 steps covering valid fixtures, invalid fixtures, DSP reference values,
-oscillator spectral purity, control surface extremes, reverb cross-engine equivalence, finite
-output, official examples, and profiling).
+[`piccle-spec/docs/15-engine-build-guide.md`](piccle-spec/docs/15-engine-build-guide.md) §Piccle
+engine qualification (9 steps covering valid fixtures, invalid fixtures, DSP reference values,
+oscillator spectral purity, control surface extremes, spatial-effect equivalence, finite output,
+official examples, and profiling).
 
 ## 5. Engine design principles
 
@@ -251,7 +251,7 @@ after the fix, and is named after the scenario.
 
 Drive every fixture in `piccle-spec/test-vectors/valid/` and `piccle-spec/test-vectors/invalid/`,
 asserting stage/code/path against `piccle-spec/test-vectors/invalid-expectations.json`. Run with
-`cargo xtask conformance`.
+`cargo conformance` (the release-profile conformance alias).
 
 ### 8.5 Snapshot tests (insta)
 
@@ -283,6 +283,8 @@ Per spec `docs/03-sources.md`, test every oscillator at canonical measurement fr
   `cargo flamegraph` on release builds. Canonical benches live in
   `crates/piccle-render/benches/render.rs`; run them with `cargo xtask bench`.
 - **Release profile** — `lto = "thin"`, `codegen-units = 1`, `panic = "abort"`
+- **Release qualification** — run the specification's deterministic PCG32 seed-0 reverb differential
+  pass for at least 100 valid configurations and record the seed and count in `CONFORMANCE.md`.
 
 ## 10. Security, trust & safety
 
@@ -374,7 +376,7 @@ cargo clippy --workspace -- -D warnings
 cargo deny check
 cargo audit
 typos
-cargo xtask conformance --piccle-spec piccle-spec    # if validation/render changed
+cargo conformance --piccle-spec piccle-spec          # if validation/render changed
 ```
 
 ## 12. Open source readiness

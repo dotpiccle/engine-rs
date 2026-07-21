@@ -17,6 +17,8 @@
 
 #![allow(clippy::unwrap_used, clippy::expect_used, missing_docs)]
 
+use std::hint::black_box;
+
 use criterion::{BatchSize, Criterion, Throughput, criterion_group, criterion_main};
 use piccle_core::curve::Curve;
 use piccle_core::model::{
@@ -117,7 +119,7 @@ fn bench_plan(b: &mut criterion::Bencher, plan: &RenderPlan) {
         || Renderer::new(plan),
         |mut renderer| {
             renderer.render_into(&mut buffer).expect("render cannot fail");
-            criterion::black_box(&buffer);
+            black_box(&buffer);
         },
         BatchSize::SmallInput,
     );
@@ -139,7 +141,7 @@ fn bench_single_frame(b: &mut criterion::Bencher, probe: &FrameProbe<'_>) {
         },
         |mut renderer| {
             renderer.render_into(&mut output).expect("single-frame render cannot fail");
-            criterion::black_box(output);
+            black_box(output);
         },
         BatchSize::SmallInput,
     );

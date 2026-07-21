@@ -11,8 +11,3 @@ updates:
     schedule:
       interval: weekly
     labels: [dependencies, ci]
-  - package-ecosystem: gitsubmodule
-    directory: /piccle-spec
-    schedule:
-      interval: weekly
-    labels: [dependencies, spec]

@@ -107,7 +107,7 @@ fn non_finite_error_path_allocates_nothing() {
     ));
 }
 
-/// Spec `docs/15-engine-build-guide.md` §Engine conformance verification
+/// Spec `docs/15-engine-build-guide.md` §Piccle engine qualification
 /// step 9: no allocation at maximum supported voices and filters.
 #[test]
 fn render_into_allocates_nothing_at_max_voices_and_filters() {

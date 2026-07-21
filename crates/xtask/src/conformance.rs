@@ -1,5 +1,5 @@
 //! `cargo xtask conformance` — the spec-defined engine conformance gate of
-//! piccle-spec/docs/15-engine-build-guide.md §Engine conformance verification.
+//! piccle-spec/docs/15-engine-build-guide.md §Piccle engine qualification.
 
 use std::io::Write as _;
 use std::path::Path;
@@ -202,6 +202,29 @@ fn check_dsp_values(spec: &Path, report: &mut Report) {
         "curve exponential 0.1→1 @0.5".to_string(),
         (exp - f(&["curve_progress_at_half", "exponential_0_1_to_1"])).abs() <= 1e-16,
     );
+
+    // Directional fade checkpoints catch endpoint-order regressions. Fade-out
+    // curves are not generally the time reverse of fade-in curves.
+    let fade_level = f(&["fade_values_at_half", "level"]);
+    for curve in
+        [Curve::Linear, Curve::Exponential, Curve::EaseIn, Curve::EaseOut, Curve::EaseInOut]
+    {
+        let name = curve.schema_name();
+        report.check(
+            format!("fade-in {name}@0.5"),
+            transcendental_reference_close(
+                curve.value(0.0, fade_level, half),
+                f(&["fade_values_at_half", "fade_in", name]),
+            ),
+        );
+        report.check(
+            format!("fade-out {name}@0.5"),
+            transcendental_reference_close(
+                curve.value(fade_level, 0.0, half),
+                f(&["fade_values_at_half", "fade_out", name]),
+            ),
+        );
+    }
 
     // Zero-duration transition chain: last target wins at frame zero.
     let chain_doc = tone_document(vec![
@@ -587,6 +610,13 @@ struct ReverbQualificationCase<'a> {
     reference: &'a serde_json::Value,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+struct ReverbPropertyCase {
+    tail_ms: u64,
+    soften_hz: f64,
+    sample_rate: u32,
+}
+
 const REVERB_REFERENCE_METRICS_SCRIPT: &str = r#"
 import importlib.util
 import json
@@ -625,9 +655,14 @@ additional_profile_rows = [
     if sample_rate != 48000
     for tail_ms in (1, 10, 20, 220, 500)
 ]
+property_rows = [
+    metric_row(entry["tail_ms"], entry["soften_hz"], entry["sample_rate"])
+    for entry in json.load(sys.stdin)
+]
 print(json.dumps({
     "matrix": matrix_rows,
     "additional_profiles": additional_profile_rows,
+    "property": property_rows,
 }, allow_nan=False))
 "#;
 
@@ -735,8 +770,15 @@ fn check_reverb_qualification_matrix(spec: &Path, report: &mut Report) {
     let matrix: serde_json::Value =
         serde_json::from_str(&matrix_text).expect("parse qualification matrix");
     let entries = matrix["entries"].as_array().expect("qualification entries");
+    let property_definition = &matrix["property_test"];
+    let property_cases = reverb_property_cases(property_definition);
+    println!(
+        "  PROPERTY PCG32 seed {}, count {}",
+        property_definition["seed"].as_u64().expect("property seed"),
+        property_cases.len()
+    );
     progress("generating normative reverb qualification references with Python");
-    let references = match normative_reverb_reference_metrics(spec) {
+    let references = match normative_reverb_reference_metrics(spec, &property_cases) {
         Ok(value) => value,
         Err(error) => {
             report.check(format!("qualification matrix reference generation: {error}"), false);
@@ -795,6 +837,64 @@ fn check_reverb_qualification_matrix(spec: &Path, report: &mut Report) {
             report,
         );
     }
+
+    report.check(
+        "property pass is mandatory".into(),
+        property_definition["requirement"].as_str() == Some("MUST"),
+    );
+    report.check(
+        "property pass uses PCG32 seed 0".into(),
+        property_definition["seed"].as_u64() == Some(0),
+    );
+    let property_rows = references["property"].as_array().expect("property metric rows");
+    report.check(
+        "property reference count".into(),
+        property_rows.len() == property_cases.len() && property_cases.len() >= 100,
+    );
+    for (index, (case, row)) in property_cases.iter().zip(property_rows).enumerate() {
+        let label = format!(
+            "property #{index:03} {}ms/{}Hz/{}Hz",
+            case.tail_ms, case.soften_hz, case.sample_rate
+        );
+        progress(&label);
+        check_generated_reverb_case(
+            &ReverbQualificationCase {
+                label: &label,
+                tail_ms: case.tail_ms,
+                soften_hz: case.soften_hz,
+                sample_rate: case.sample_rate,
+                reference: &row["metrics"],
+            },
+            report,
+        );
+    }
+}
+
+fn reverb_property_cases(definition: &serde_json::Value) -> Vec<ReverbPropertyCase> {
+    let count = definition["minimum_count"].as_u64().expect("property minimum count") as usize;
+    let seed = definition["seed"].as_u64().expect("property seed") as u32;
+    let tail_range = definition["tail_ms_range"].as_array().expect("tail range");
+    let soften_range = definition["soften_hz_range"].as_array().expect("soften range");
+    let sample_rates = definition["sample_rates"].as_array().expect("sample rates");
+    let tail_min = tail_range[0].as_u64().expect("tail minimum");
+    let tail_max = tail_range[1].as_u64().expect("tail maximum");
+    let soften_min = soften_range[0].as_u64().expect("soften minimum");
+    let soften_max = soften_range[1].as_u64().expect("soften maximum");
+    let mut rng = Pcg32::new(seed);
+
+    (0..count)
+        .map(|_| {
+            let tail_ms = random_inclusive(&mut rng, tail_min, tail_max);
+            let soften_hz = random_inclusive(&mut rng, soften_min, soften_max) as f64;
+            let rate_index = rng.next_u32() as usize % sample_rates.len();
+            let sample_rate = sample_rates[rate_index].as_u64().expect("sample rate") as u32;
+            ReverbPropertyCase { tail_ms, soften_hz, sample_rate }
+        })
+        .collect()
+}
+
+fn random_inclusive(rng: &mut Pcg32, minimum: u64, maximum: u64) -> u64 {
+    minimum + u64::from(rng.next_u32()) % (maximum - minimum + 1)
 }
 
 // -------------------------------------------------------- F2. echo reference
@@ -955,13 +1055,36 @@ fn check_generated_reverb_case(case: &ReverbQualificationCase<'_>, report: &mut 
         .check(format!("{} onset", case.label), metrics.onset_frame.abs_diff(reference_onset) <= 1);
 }
 
-fn normative_reverb_reference_metrics(spec: &Path) -> Result<serde_json::Value, String> {
-    let output = Command::new("python3")
+fn normative_reverb_reference_metrics(
+    spec: &Path,
+    property_cases: &[ReverbPropertyCase],
+) -> Result<serde_json::Value, String> {
+    let property_input = property_cases
+        .iter()
+        .map(|case| {
+            serde_json::json!({
+                "tail_ms": case.tail_ms,
+                "soften_hz": case.soften_hz,
+                "sample_rate": case.sample_rate,
+            })
+        })
+        .collect::<Vec<_>>();
+    let mut child = Command::new("python3")
         .args(["-c", REVERB_REFERENCE_METRICS_SCRIPT])
         .arg(spec)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
         .stderr(Stdio::inherit())
-        .output()
+        .spawn()
         .map_err(|error| format!("could not launch Python generator: {error}"))?;
+    serde_json::to_writer(
+        child.stdin.take().ok_or_else(|| "Python stdin was unavailable".to_string())?,
+        &property_input,
+    )
+    .map_err(|error| format!("could not send property cases to Python: {error}"))?;
+    let output = child
+        .wait_with_output()
+        .map_err(|error| format!("could not wait for Python generator: {error}"))?;
     if !output.status.success() {
         return Err(format!("Python generator exited with {}", output.status));
     }
@@ -1290,6 +1413,51 @@ fn check_examples(spec: &Path, report: &mut Report) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn property_test_definition() -> serde_json::Value {
+        serde_json::json!({
+            "requirement": "MUST",
+            "minimum_count": 100,
+            "tail_ms_range": [1, 2000],
+            "soften_hz_range": [200, 12000],
+            "sample_rates": [8000, 16000, 22050, 24000, 32000, 44100, 48000, 96000],
+            "seed": 0
+        })
+    }
+
+    #[test]
+    fn reverb_property_cases_use_the_required_count() {
+        let cases = reverb_property_cases(&property_test_definition());
+
+        assert_eq!(cases.len(), 100);
+    }
+
+    #[test]
+    fn exponential_fade_checkpoint_matches_the_stable_specification() {
+        assert!(transcendental_reference_close(
+            Curve::Exponential.value(0.0, 0.8, 0.5),
+            8.944_271_909_999_158e-6,
+        ));
+    }
+
+    #[test]
+    fn reverb_property_cases_are_deterministic() {
+        let definition = property_test_definition();
+
+        assert_eq!(reverb_property_cases(&definition), reverb_property_cases(&definition));
+    }
+
+    #[test]
+    fn reverb_property_cases_stay_inside_the_declared_ranges() {
+        let cases = reverb_property_cases(&property_test_definition());
+
+        assert!(cases.iter().all(|case| {
+            (1..=2_000).contains(&case.tail_ms)
+                && (200.0..=12_000.0).contains(&case.soften_hz)
+                && [8_000, 16_000, 22_050, 24_000, 32_000, 44_100, 48_000, 96_000]
+                    .contains(&case.sample_rate)
+        }));
+    }
 
     #[test]
     fn uncapped_reference_fdn_has_the_published_220ms_total_delay() {

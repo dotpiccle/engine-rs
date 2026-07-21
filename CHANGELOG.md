@@ -7,11 +7,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+No unreleased changes.
+
+## [1.0.0] - 2026-07-21
+
 ### Added
 
 - Initial workspace scaffolding with `piccle`, `piccle-core`, `piccle-validate`, `piccle-dsp`,
   `piccle-render`, `piccle-fuzz`, and `xtask` crates (7 total).
-- Spec submodule pinned at commit `465fd48`.
+- Specification submodule pinned to the stable `v1.0.1` tag at commit `b8797cd` with no
+  branch-tracking hint.
 - CI pipeline: fmt, clippy (feature powerset), test (3 OSes), MSRV, cross-check (Linux ARM64/ARMv7,
   WASM, Android ARM64/ARMv7, iOS ARM64/sim), audit, docs, typos, dprint (format check), gitleaks
   (secrets scanning), conformance, fuzz-smoke.
@@ -38,6 +43,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   deterministic echo-tail scheduling, validation fixtures, and canonical impulse checkpoints.
 - Conformance progress output for every fixture and explicit `RUN` markers before CPU-heavy DFT,
   reference-generation, spatial-effect, and example-render phases.
+- Deterministic seed-0 reverb differential qualification across 100 randomly sampled valid
+  configurations, as required by the stable specification.
 
 ### Changed
 
@@ -51,7 +58,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   configuration-seeded dense orthogonal feedback matrix.
 - Reverb configuration seeds now use the language-neutral wrapping formula from the normative FDN.
 - Reverb conformance now covers the mandatory 10-case qualification matrix and all 40 noncanonical
-  combinations of the five canonical tails with the representative 8–192 kHz profile rates.
+  combinations of the five canonical tails with the representative 8–192 kHz profile rates, plus the
+  stable specification's mandatory 100-case property pass.
+- Directional fade conformance now recomputes every published half-duration fade-in and fade-out
+  checkpoint, protecting the specified endpoint order for all five curves.
 - Spatial effects are compiled into a canonical order so parallel output is independent of JSON
   array order, including binary32 storage results.
 
@@ -85,8 +95,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   that require the pinned specification submodule.
 - Make an unconfigured low-level oscillator emit silence instead of panicking in debug builds, and
   remove the unreachable panic branch from curve evaluation.
-- Use GitHub's supported `gitsubmodule` Dependabot ecosystem identifier so weekly specification-pin
-  updates are actually scheduled.
+- Remove automatic specification-submodule updates so a stable engine release cannot drift from the
+  explicitly reviewed specification tag.
 - Make the pre-push test fallback depend on nextest availability rather than a failed nextest run,
   so a real test failure cannot be retried under a different runner and accidentally hidden.
 - Correct the non-additive 44.1 kHz reverb-tail aid and compare Gram-Schmidt matrix normalization
@@ -120,10 +130,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   effective echo tail after format validation.
 - Require at least 90% library line coverage in CI; the release audit measured 95.19%.
 - Harden tagged releases by rejecting commits outside `main`, verifying the complete multi-crate
-  archive set before the first upload, serializing same-tag runs, and isolating GitHub write access
-  to the final release-creation job.
+  archive set, serializing same-tag runs, and isolating GitHub write access to the final
+  release-creation job. The `v1.0.0` tag creates a source release without crates.io credentials;
+  registry publication remains a separate future operation.
 - Supply-chain gates: cargo-deny (advisories, licenses, bans, sources) and cargo-audit (RUSTSEC) run
   in CI.
 - A checksum-pinned Gitleaks binary scans the complete history in CI.
 - Parser fuzzing completed more than 7.9 million seeded executions without a crash during the
   release audit.
+
+[Unreleased]: https://github.com/dotpiccle/engine-rs/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/dotpiccle/engine-rs/releases/tag/v1.0.0

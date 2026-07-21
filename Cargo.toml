@@ -17,12 +17,12 @@ members = [
 default-members = ["crates/piccle"]
 
 [workspace.package]
-version = "0.1.0"
+version = "1.0.0"
 authors = ["Piccle <engineering@dotpiccle.com>"]
 categories = ["multimedia::audio", "parser-implementations"]
 documentation = "https://docs.rs/piccle"
 edition = "2024"
-homepage = "https://dotpiccle.com"
+homepage = "https://github.com/dotpiccle/engine-rs"
 keywords = ["audio", "dsp", "synthesis", "ui-sound", "piccle"]
 license = "MIT"
 publish = true
@@ -32,11 +32,11 @@ rust-version = "1.85"
 
 [workspace.dependencies]
 # Internal crates
-piccle = { path = "crates/piccle", version = "0.1.0" }
-piccle-core = { path = "crates/piccle-core", version = "0.1.0" }
-piccle-dsp = { path = "crates/piccle-dsp", version = "0.1.0" }
-piccle-render = { path = "crates/piccle-render", version = "0.1.0" }
-piccle-validate = { path = "crates/piccle-validate", version = "0.1.0" }
+piccle = { path = "crates/piccle", version = "1.0.0" }
+piccle-core = { path = "crates/piccle-core", version = "1.0.0" }
+piccle-dsp = { path = "crates/piccle-dsp", version = "1.0.0" }
+piccle-render = { path = "crates/piccle-render", version = "1.0.0" }
+piccle-validate = { path = "crates/piccle-validate", version = "1.0.0" }
 
 # External crates. Cargo.lock pins workspace builds; published libraries keep
 # compatible version ranges so downstream applications can unify dependencies.
