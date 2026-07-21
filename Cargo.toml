@@ -44,7 +44,7 @@ serde_json = { version = "1.0", features = ["preserve_order"] }
 thiserror = "2.0"
 
 # Dev-only
-criterion = { version = "0.5", features = ["html_reports"] }
+criterion = { version = "0.7", features = ["html_reports"] }
 insta = { version = "1.40", features = ["json"] }
 proptest = "1.5"
 
