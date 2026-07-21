@@ -14,9 +14,9 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with: { submodules: recursive }
-      - uses: taiki-e/install-action@25f25a6eff908c77b40880d0b1f5d2a032b6e75a
+      - uses: taiki-e/install-action@a6b2e2dcd845ddd7f509ce4f3ed3d922b80cc5d9
         with: { tool: cargo-deny }
-      - uses: taiki-e/install-action@25f25a6eff908c77b40880d0b1f5d2a032b6e75a
+      - uses: taiki-e/install-action@a6b2e2dcd845ddd7f509ce4f3ed3d922b80cc5d9
         with: { tool: cargo-audit }
       - run: cargo deny check advisories
       - run: cargo audit

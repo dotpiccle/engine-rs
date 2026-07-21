@@ -33,7 +33,7 @@ jobs:
         with: { submodules: recursive }
       - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c
         with: { toolchain: stable, components: clippy }
-      - uses: taiki-e/install-action@25f25a6eff908c77b40880d0b1f5d2a032b6e75a
+      - uses: taiki-e/install-action@a6b2e2dcd845ddd7f509ce4f3ed3d922b80cc5d9
         with: { tool: cargo-hack }
       - run: cargo hack clippy --feature-powerset --no-dev-deps -- -D warnings
 
@@ -49,7 +49,7 @@ jobs:
         with: { submodules: recursive }
       - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c
         with: { toolchain: stable }
-      - uses: taiki-e/install-action@25f25a6eff908c77b40880d0b1f5d2a032b6e75a
+      - uses: taiki-e/install-action@a6b2e2dcd845ddd7f509ce4f3ed3d922b80cc5d9
         with: { tool: cargo-nextest }
       - run: cargo nextest run --workspace --all-features
       - run: cargo test --doc --workspace --all-features
@@ -62,9 +62,9 @@ jobs:
         with: { submodules: recursive }
       - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c
         with: { toolchain: stable, components: llvm-tools-preview }
-      - uses: taiki-e/install-action@25f25a6eff908c77b40880d0b1f5d2a032b6e75a
+      - uses: taiki-e/install-action@a6b2e2dcd845ddd7f509ce4f3ed3d922b80cc5d9
         with: { tool: cargo-nextest }
-      - uses: taiki-e/install-action@25f25a6eff908c77b40880d0b1f5d2a032b6e75a
+      - uses: taiki-e/install-action@a6b2e2dcd845ddd7f509ce4f3ed3d922b80cc5d9
         with: { tool: cargo-llvm-cov }
       - run: >-
           cargo llvm-cov nextest --workspace --all-features
@@ -118,9 +118,9 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with: { submodules: recursive }
-      - uses: taiki-e/install-action@25f25a6eff908c77b40880d0b1f5d2a032b6e75a
+      - uses: taiki-e/install-action@a6b2e2dcd845ddd7f509ce4f3ed3d922b80cc5d9
         with: { tool: cargo-deny }
-      - uses: taiki-e/install-action@25f25a6eff908c77b40880d0b1f5d2a032b6e75a
+      - uses: taiki-e/install-action@a6b2e2dcd845ddd7f509ce4f3ed3d922b80cc5d9
         with: { tool: cargo-audit }
       - run: cargo deny check
       - run: cargo audit
@@ -153,7 +153,7 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with: { submodules: recursive }
-      - uses: taiki-e/install-action@25f25a6eff908c77b40880d0b1f5d2a032b6e75a
+      - uses: taiki-e/install-action@a6b2e2dcd845ddd7f509ce4f3ed3d922b80cc5d9
         with: { tool: typos-cli }
       - run: typos
 
@@ -163,7 +163,7 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with: { submodules: recursive }
-      - uses: taiki-e/install-action@25f25a6eff908c77b40880d0b1f5d2a032b6e75a
+      - uses: taiki-e/install-action@a6b2e2dcd845ddd7f509ce4f3ed3d922b80cc5d9
         with: { tool: dprint }
       - run: dprint check
 
