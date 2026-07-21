@@ -29,7 +29,7 @@ jobs:
       - run: cargo nextest run --workspace --all-features
       - run: cargo test --doc --workspace --all-features
 
-  publish-crates:
+  verify-release:
     needs: platform-tests
     permissions:
       contents: read
@@ -85,8 +85,8 @@ jobs:
           cargo deny check
           cargo audit
           python3 piccle-spec/scripts/validate.py
-          cargo xtask conformance --piccle-spec piccle-spec
-      - name: verify published archive contents
+          cargo conformance --piccle-spec piccle-spec
+      - name: verify release archive contents
         shell: bash
         run: |
           set -euo pipefail
@@ -101,58 +101,14 @@ jobs:
             fi
           done
           grep --line-regexp 'test-data/reverb-matrix-vector.json' /tmp/piccle-dsp.package-files
-      - name: publish to crates.io
-        shell: bash
-        run: |
-          set -euo pipefail
-          version=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select(.name == "piccle") | .version')
-          publish_crate() {
-            crate="$1"
-            endpoint="https://crates.io/api/v1/crates/${crate}/${version}"
-            if curl --fail --silent --show-error "$endpoint" >/dev/null; then
-              echo "${crate} ${version} is already published"
-              return
-            fi
-            published=false
-            for attempt in {1..12}; do
-              if curl --fail --silent "$endpoint" >/dev/null; then
-                published=true
-                break
-              fi
-              if cargo publish --locked -p "$crate"; then
-                published=true
-                break
-              fi
-              echo "Publish attempt ${attempt} for ${crate} failed; waiting for registry propagation" >&2
-              sleep 10
-            done
-            if [ "$published" != true ]; then
-              echo "Could not publish ${crate} ${version} after 12 attempts" >&2
-              return 1
-            fi
-            for attempt in {1..30}; do
-              if curl --fail --silent "$endpoint" >/dev/null; then
-                return
-              fi
-              sleep 10
-            done
-            echo "${crate} ${version} did not become visible on crates.io" >&2
-            return 1
-          }
-          publish_crate piccle-core
-          publish_crate piccle-dsp
-          publish_crate piccle-validate
-          publish_crate piccle-render
-          publish_crate piccle
-        env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
   create-github-release:
-    needs: publish-crates
+    needs: verify-release
     permissions:
       contents: write
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: create GitHub Release
         shell: bash
         run: |
@@ -163,7 +119,7 @@ jobs:
             gh release create "${GITHUB_REF_NAME}" \
               --repo "${GH_REPO}" \
               --verify-tag \
-              --generate-notes \
+              --notes-file RELEASE_NOTES.md \
               --title "Piccle Engine ${GITHUB_REF_NAME}"
           fi
         env:

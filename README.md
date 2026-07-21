@@ -1,7 +1,9 @@
 # Piccle Engine
 
-The production Rust reference engine for the [Piccle](https://github.com/dotpiccle/spec) procedural
-UI-audio format.
+The production Rust reference engine for the
+[Piccle v1 specification](https://github.com/dotpiccle/spec/tree/v1.0.1) procedural UI-audio format.
+Engine `v1.0.0` pins the specification's immutable `v1.0.1` tag; exact qualification evidence and
+any documented limitations are recorded in `CONFORMANCE.md`.
 
 Piccle assets describe short one-shot sounds as deterministic synthesis instructions rather than
 recorded samples. This engine applies parser resource limits, validates the document, resolves an
@@ -12,6 +14,14 @@ deliberately outside the core library.
 
 Depend on the umbrella crate. Its opaque `RenderPlan` can only be obtained through the complete
 untrusted-input boundary:
+
+```toml
+[dependencies]
+piccle = { git = "https://github.com/dotpiccle/engine-rs", tag = "v1.0.0" }
+```
+
+The Git dependency is the supported installation source for this GitHub release. The crates are
+versioned `1.0.0` but are intentionally not published to crates.io yet.
 
 ```rust
 use piccle::Renderer;
@@ -43,6 +53,25 @@ while !renderer.is_finished() {
 
 `Renderer::render_into` performs no allocation. `Renderer::render_to_vec` is a convenience for short
 assets and refuses allocations above 64 MiB; stream longer timelines in fixed-size blocks.
+
+## SDK integration contract
+
+An SDK passes untrusted Piccle JSON bytes to `piccle::prepare` for the canonical 48 kHz profile, or
+to `piccle::prepare_with_rate` for another supported rate. Preparation parses, validates, applies
+engine resource limits, and returns an opaque immutable plan. Create a separate `Renderer` for each
+playback and call `render_into` from the host's bounded buffering path.
+
+The output is raw normalized PCM represented as interleaved stereo `f32` samples:
+`[left_0, right_0, left_1, right_1, ...]`. Samples are finite and hard-clipped to `[-1.0, 1.0]`; the
+sample rate is the plan's selected render rate and `output_frames()` is the exact frame count. A
+host SDK owns device routing, queueing, resampling, mono downmix, and conversion to integer PCM when
+required by its platform.
+
+JSON preparation and `Renderer::new` may allocate and must run outside a real-time audio callback.
+After preparation, `render_into` performs no allocation, parsing, schema traversal, event sorting,
+or table construction. The core repository exposes a Rust API; platform SDKs should wrap this API
+with the ABI appropriate to their runtime rather than depending on a stable C, JNI, Swift, Dart, or
+WebAssembly ABI from this release.
 
 ## Guarantees
 
@@ -84,7 +113,7 @@ after Piccle clipping.
 These are acceptance and memory-safety ceilings, not a promise that the maximum document renders
 live on every device. Hosts may render live, ahead of playback, cache output, or render offline.
 Low-end-device live limits must be established from the workload and callback size; see the
-[benchmark notes](https://github.com/dotpiccle/engine-rs/blob/main/BENCHMARKS.md).
+[benchmark notes](https://github.com/dotpiccle/engine-rs/blob/v1.0.0/BENCHMARKS.md).
 
 ## Workspace
 
@@ -112,22 +141,22 @@ cargo +nightly fmt --all -- --check
 cargo clippy --workspace --all-targets --all-features -- -D warnings
 cargo deny check
 cargo audit
-cargo xtask conformance --piccle-spec piccle-spec
+cargo conformance --piccle-spec piccle-spec
 ```
 
 See the repository's
-[contribution guide](https://github.com/dotpiccle/engine-rs/blob/main/CONTRIBUTING.md),
-[benchmark notes](https://github.com/dotpiccle/engine-rs/blob/main/BENCHMARKS.md), and
-[release checklist](https://github.com/dotpiccle/engine-rs/blob/main/RELEASE_CHECKLIST.md). The
-[conformance report](https://github.com/dotpiccle/engine-rs/blob/main/CONFORMANCE.md) records the
-pinned specification and current evidence. Automated canonical conformance checks run in CI;
-perceptual listening review and representative low-end Android measurements remain explicit release
-activities.
+[contribution guide](https://github.com/dotpiccle/engine-rs/blob/v1.0.0/CONTRIBUTING.md),
+[benchmark notes](https://github.com/dotpiccle/engine-rs/blob/v1.0.0/BENCHMARKS.md), and
+[release checklist](https://github.com/dotpiccle/engine-rs/blob/v1.0.0/RELEASE_CHECKLIST.md). The
+[conformance report](https://github.com/dotpiccle/engine-rs/blob/v1.0.0/CONFORMANCE.md) records the
+pinned specification and current evidence. Automated canonical conformance checks run in CI.
+Perceptual listening and device-specific performance claims require evidence for the exact output
+path or hardware being claimed; they are not prerequisites for this portable source release.
 
 For the ARMv7 release probe, connect one authorized Android device and run
 `cargo xtask device-bench`; see the
-[benchmark notes](https://github.com/dotpiccle/engine-rs/blob/main/BENCHMARKS.md) for prerequisites
-and interpretation.
+[benchmark notes](https://github.com/dotpiccle/engine-rs/blob/v1.0.0/BENCHMARKS.md) for
+prerequisites and interpretation.
 
 ## Compatibility
 
@@ -135,5 +164,5 @@ Minimum Supported Rust Version: **1.85** (Rust 2024 edition). MSRV bumps are Sem
 
 ## License
 
-MIT. See the [engine license](https://github.com/dotpiccle/engine-rs/blob/main/LICENSE) and
-[specification license](https://github.com/dotpiccle/spec/blob/main/LICENSE).
+MIT. See the [engine license](https://github.com/dotpiccle/engine-rs/blob/v1.0.0/LICENSE) and
+[specification license](https://github.com/dotpiccle/spec/blob/v1.0.1/LICENSE).

@@ -195,4 +195,4 @@ jobs:
       - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c
         with: { toolchain: stable }
       - run: python3 piccle-spec/scripts/validate.py
-      - run: cargo xtask conformance --piccle-spec piccle-spec
+      - run: cargo conformance --piccle-spec piccle-spec

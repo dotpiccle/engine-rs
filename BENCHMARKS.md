@@ -57,6 +57,11 @@ Criterion medians on the local arm64 macOS audit host, rendering 4,096-frame chu
 | Same 128 voices, following frame  | 0.998 µs/frame       |
 | 128 voices × 16 filters + reverb  | 75.4 Kframe/s        |
 
+The 2026-07-21 release rerun measured the isolated 200 ms echo case at a 45.514 µs median for 4,096
+frames (89.994 Mframe/s), consistent with the audit range. A slower concurrent measurement was
+discarded after the isolated rerun because the mandatory 100-case reverb differential gate was using
+the same CPU at the time.
+
 Reverb preparation medians on the same host are 48.8 µs (1 ms), 633 µs (20 ms), 6.58 ms (220 ms),
 and 14.8 ms (500 ms). Production preparation retains one binary64 energy value per harness frame:
 about 22 MiB at the 60-second resource ceiling, down from three frame-sized binary64 buffers (about
@@ -78,35 +83,34 @@ pitch-contour segment on all 128 active voices measured 1.060 µs versus 0.998 �
 following frame in the isolated confirmation run: about 0.062 µs (6.2%) bounded overhead, with no
 allocation or unbounded search. These numbers demonstrate inactive-voice gating, bounded boundary
 work, and tail-independent steady reverb and oscillator arithmetic. They are not a substitute for
-the required ARMv7 device measurements. The maximum accepted workload is only about 1.57× the 48 kHz
+representative device measurements. The maximum accepted workload is only about 1.57× the 48 kHz
 real-time rate even on this host. A 128-frame callback probe measured about 1.45× aggregate real
 time but a 3.83 ms worst callback, which exceeds the 2.67 ms callback period. The published resource
 ceilings are therefore safe offline acceptance limits, not a live low-end-device guarantee. The
 official examples are far lighter (at most four layers and one filter per layer), but still require
 device evidence.
 
-Still required before the first production performance claim: run the complete probe on the actual
-lowest supported Android ARMv7 device and preserve its results with the release evidence.
+Before making a device-specific production performance claim, run the complete probe on that
+representative device and preserve its results with the release evidence.
 
-### 2026-07-20 secondary Android snapshot
+### 2026-07-21 Android release snapshot
 
 The release ARMv7/API-21 probe also ran successfully on a Galaxy S20 FE (`SM-G780F`, Android 13,
 5,590,964 KiB RAM). The phone reports an `arm64-v8a` primary ABI, while the deployed executable is
 the same 32-bit `armeabi-v7a` artifact intended for the minimum Android profile.
 
-| Workload                                    | Preparation     | Real-time factor | Worst 128-frame callback | Peak RSS        |
-| ------------------------------------------- | --------------- | ---------------- | ------------------------ | --------------- |
-| One 20 Hz saw                               | 58.727 ms       | 346.104×         | 6.885 µs                 | 8,144 KiB       |
-| Four voices and one moving filter           | 53.447 ms       | 36.933×          | 90.231 µs                | 8,424 KiB       |
-| Fourteen pre-echo examples (observed range) | 0.042–42.630 ms | 79.197–294.702×  | 10.500–73.538 µs         | 8,424–8,672 KiB |
-| 128 voices × 16 filters plus reverb         | 53.179 ms       | 0.536×           | 5,024.269 µs             | 9,084 KiB       |
+| Workload                            | Preparation     | Real-time factor | Worst 128-frame callback | Peak RSS        |
+| ----------------------------------- | --------------- | ---------------- | ------------------------ | --------------- |
+| One 20 Hz saw                       | 75.494 ms       | 491.048×         | 7.346 µs                 | 8,204 KiB       |
+| Four voices and one moving filter   | 61.115 ms       | 37.150×          | 88.577 µs                | 8,472 KiB       |
+| All 15 examples (observed range)    | 0.041–42.626 ms | 78.825–396.664×  | 10.154–74.077 µs         | 8,472–8,836 KiB |
+| 128 voices × 16 filters plus reverb | 53.146 ms       | 0.536×           | 5,099.000 µs             | 9,272 KiB       |
 
 Every official example and the representative moving-filter workload rendered comfortably ahead of
 real time. The intentionally maximal accepted workload did not sustain live real time, confirming
 that the resource ceiling is an offline/ahead-of-playback acceptance limit. This modern phone is
-useful deployment-path evidence, but it does not satisfy the lowest-supported-device gate or justify
-a Galaxy J5 performance claim. This snapshot predates the echo example; rerun the 15-example probe
-before making Android echo-performance claims.
+useful deployment-path evidence, but it does not justify a Galaxy J5 performance claim. All 15
+official examples, including echo, rendered far ahead of real time in this probe.
 
 ## Profiling
 

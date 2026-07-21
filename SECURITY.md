@@ -1,5 +1,15 @@
 # Security Policy
 
+## Supported versions
+
+| Version | Supported |
+| ------- | --------- |
+| 1.x     | Yes       |
+| < 1.0   | No        |
+
+Security fixes are applied to the latest `1.x` release. Until crates.io publication is separately
+announced, use the corresponding immutable Git tag as the dependency source.
+
 ## Reporting a vulnerability
 
 If you discover a security vulnerability in this engine, please report it privately by emailing

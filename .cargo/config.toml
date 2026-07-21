@@ -1,5 +1,6 @@
 [alias]
 xtask = "run --package xtask --"
+conformance = "run --release --package xtask -- conformance"
 setup = "run --package xtask -- setup"
 t = "nextest run"
 tcov = "llvm-cov nextest --workspace"

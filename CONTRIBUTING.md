@@ -45,7 +45,7 @@ cargo audit
 ## Spec conformance
 
 ```bash
-cargo xtask conformance --piccle-spec piccle-spec
+cargo conformance --piccle-spec piccle-spec
 ```
 
 ## Commit messages
